@@ -7,3 +7,4 @@ scikit-learn
 stripe
 paypal-checkout-serversdk
 requests
+onnxruntime
