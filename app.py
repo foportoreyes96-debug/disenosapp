@@ -44,7 +44,7 @@ st.markdown("""
             border-radius: 8px;
         }
     </style>
-""", unsafe_allow_unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # ==========================================
 # 2. MONETIZACIÓN ($1.50 USD) - STRIPE Y PAYPAL
