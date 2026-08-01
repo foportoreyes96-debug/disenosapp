@@ -1,0 +1,9 @@
+streamlit
+pillow
+numpy
+opencv-python-headless
+rembg
+scikit-learn
+stripe
+paypal-checkout-serversdk
+requests
