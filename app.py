@@ -86,6 +86,7 @@ TRADUCCIONES = {
         "prompt_ia": "Instrucciones de cambio de la gente",
         "fuerza_ia": "Fuerza de variación",
         "usar_upscale": "🔍 Ampliar Calidad (Estilo Megapixel 4K)",
+        "quitar_fondo_hd": "🪄 Quitar Fondo HD Inteligente (Sin perder calidad)",
         "tecnica": "Técnica de Impresión / Processo",
         "dtf": "DTF (Impresión Directa a Film)",
         "sublimacion": "Sublimación",
@@ -121,6 +122,7 @@ TRADUCCIONES = {
         "prompt_ia": "Customer change instructions",
         "fuerza_ia": "Variation strength",
         "usar_upscale": "🔍 AI Upscale & Enhance (Megapixel 4K)",
+        "quitar_fondo_hd": "🪄 Smart HD Background Removal (Enhanced Quality)",
         "tecnica": "Printing Technique / Process",
         "dtf": "DTF (Direct to Film)",
         "sublimacion": "Sublimation",
@@ -156,6 +158,7 @@ TRADUCCIONES = {
         "prompt_ia": "Instruções de mudança do cliente",
         "fuerza_ia": "Força de variação",
         "usar_upscale": "🔍 Ampliar Qualidade (Estilo Megapixel 4K)",
+        "quitar_fondo_hd": "🪄 Remover Fundo HD Inteligente (Sem Perda de Qualidade)",
         "tecnica": "Técnica de Impressão / Processo",
         "dtf": "DTF (Impressão Direta no Filme)",
         "sublimacion": "Sublimação",
@@ -191,6 +194,7 @@ TRADUCCIONES = {
         "prompt_ia": "Instructions de modification du client",
         "fuerza_ia": "Force de variation",
         "usar_upscale": "🔍 Agrandir Qualité (Style Megapixel 4K)",
+        "quitar_fondo_hd": "🪄 Suppression de Fond HD Intelligente (Sans Perte de Qualité)",
         "tecnica": "Technique d'impression / Processus",
         "dtf": "DTF",
         "sublimacion": "Sublimation",
@@ -278,8 +282,37 @@ def ampliar_calidad_megapixel(pil_img):
         w, h = pil_img.size
         return pil_img.resize((w * 2, h * 2), Image.Resampling.LANCZOS)
 
+def quitar_fondo_con_mejora_hd(pil_img):
+    """Quita el fondo tipo remove.bg y aumenta automáticamente la calidad/nitidez sin perder resolución"""
+    # 1. Quitar fondo de forma limpia
+    img_sin_fondo = remove(pil_img)
+    
+    # 2. Upscale / Mejora automática de nitidez y resolución para evitar pérdida de calidad
+    if STABILITY_API_KEY != "sk-TU_CLAVE_STABILITY_AI" and STABILITY_API_KEY:
+        buffer = io.BytesIO()
+        img_sin_fondo.save(buffer, format="PNG")
+        buffer.seek(0)
+        try:
+            response = requests.post(
+                "https://api.stability.ai/v1/generation/esrgan-v1-x2plus/image-to-image/upscale",
+                headers={"Authorization": f"Bearer {STABILITY_API_KEY}", "Accept": "application/json"},
+                files={"image": buffer}
+            )
+            if response.status_code == 200:
+                data = response.json()
+                image_data = base64.b64decode(data["artifacts"][0]["base64"])
+                return Image.open(io.BytesIO(image_data))
+        except Exception:
+            pass
+            
+    # Fallback local de alta nitidez (LANCZOS 2x) si no hay API externa configurada
+    w, h = img_sin_fondo.size
+    return img_sin_fondo.resize((w * 2, h * 2), Image.Resampling.LANCZOS)
+
 def generar_vista_previa_protegida_con_cambios(pil_img, lista_cambios):
     preview = pil_img.copy()
+    if preview.mode != "RGB":
+        preview = preview.convert("RGB")
     preview.thumbnail((500, 500))
     draw = ImageDraw.Draw(preview)
     w, h = preview.size
@@ -292,13 +325,23 @@ def generar_vista_previa_protegida_con_cambios(pil_img, lista_cambios):
     return preview
 
 def procesar_alta_calidad(pil_img, target_w, target_h):
-    img_sin_fondo = remove(pil_img)
+    if pil_img.mode != "RGBA":
+        img_sin_fondo = remove(pil_img)
+    else:
+        img_sin_fondo = pil_img
     return img_sin_fondo.resize((target_w, target_h), Image.Resampling.LANCZOS)
 
 def separar_colores_kmeans(pil_image, num_tintas):
-    img_np = np.array(pil_image)
+    if pil_image.mode == "RGBA":
+        background = Image.new("RGB", pil_image.size, (255, 255, 255))
+        background.paste(pil_image, mask=pil_image.split()[3])
+        img_np = np.array(background)
+        alpha = np.array(pil_image.split()[3])
+    else:
+        img_np = np.array(pil_image.convert("RGB"))
+        alpha = np.ones((img_np.shape[0], img_np.shape[1]), dtype=np.uint8) * 255
+
     rgb = img_np[:, :, :3]
-    alpha = img_np[:, :, 3]
     mask_pixels = alpha > 100
     pixels_validos = rgb[mask_pixels]
     pixels_lab = cv2.cvtColor(pixels_validos.reshape(-1, 1, 3), cv2.COLOR_RGB2Lab).reshape(-1, 3)
@@ -315,7 +358,13 @@ def separar_colores_kmeans(pil_image, num_tintas):
     return capas
 
 def generar_fotolitos_cuatricomia_cmyk(pil_image_hd, lpi=55, dpi=300):
-    rgb = np.array(pil_image_hd.convert('RGB')).astype(float) / 255.0
+    if pil_image_hd.mode == "RGBA":
+        background = Image.new("RGB", pil_image_hd.size, (255, 255, 255))
+        background.paste(pil_image_hd, mask=pil_image_hd.split()[3])
+        rgb = np.array(background).astype(float) / 255.0
+    else:
+        rgb = np.array(pil_image_hd.convert('RGB')).astype(float) / 255.0
+
     k = 1.0 - np.max(rgb, axis=2)
     k_mask = k < 1.0 
     c = np.zeros_like(k)
@@ -417,7 +466,7 @@ num_tintas = 4
 if tecnica == txt["serigrafia_planos"]:
     num_tintas = st.sidebar.slider(txt["num_tintas"], 2, 8, 4)
 
-# Panel de Cambios y Peticiones de la Gente (Sin modificación de contenido específico)
+# Panel de Cambios y Peticiones de la Gente
 st.sidebar.divider()
 st.sidebar.header(txt["herramientas_ia_extra"])
 
@@ -435,15 +484,23 @@ usar_upscale = st.sidebar.checkbox(txt["usar_upscale"], value=False)
 if usar_upscale:
     cambios_solicitados.append("Ampliación Calidad Megapixel 4K")
 
+quitar_fondo_activo = st.sidebar.checkbox(txt["quitar_fondo_hd"], value=False)
+if quitar_fondo_activo:
+    cambios_solicitados.append("Eliminación de fondo HD con mejora automática de nitidez")
+
 # ==========================================
 # 6. CARGA Y VISUALIZADOR DE CAMBIOS
 # ==========================================
 uploaded_file = st.file_uploader(txt["subir_imagen"], type=["png", "jpg", "jpeg", "webp"])
 
 if uploaded_file is not None:
-    imagen_original = Image.open(uploaded_file).convert("RGB")
+    imagen_original = Image.open(uploaded_file)
     
     # APLICAR MODIFICACIONES
+    if quitar_fondo_activo:
+        with st.spinner("Quitando fondo y mejorando calidad automáticamente..."):
+            imagen_original = quitar_fondo_con_mejora_hd(imagen_original)
+
     if usar_upscale:
         with st.spinner("Aplicando ampliación de calidad Megapixel..."):
             imagen_original = ampliar_calidad_megapixel(imagen_original)
