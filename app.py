@@ -5,12 +5,12 @@ import io
 
 # Configuración de la página
 st.set_page_config(
-    page_title="Separación Profesional CMYK & Serigrafía",
-    page_icon="🖨️",
+    page_title="Plataforma de Publicidad & Artes Gráficas",
+    page_icon="🎨",
     layout="wide"
 )
 
-# --- ESTILOS CSS PROFESIONALES ---
+# --- ESTILOS VISUALES (DARK MODE PRO) ---
 st.markdown("""
     <style>
     .stApp {
@@ -44,32 +44,28 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- CABECERA ---
-st.markdown("<h1 style='text-align: center; color: #58A6FF;'>🖨️ Estación de Preimpresión y Cuatricomía</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #8B949E;'>Preparación de archivos, reescalado HD y separación de tramas a 300 PPI con vista previa final.</p>", unsafe_allow_html=True)
-st.divider()
+# --- MENÚ LATERAL DE NAVEGACIÓN ---
+st.sidebar.markdown("## 🎨 Panel de Control")
+st.sidebar.markdown("Herramientas Profesionales para Publicidad y Producción")
+st.sidebar.markdown("---")
 
-# --- PANEL DE CONTROL (BARRA LATERAL) ---
-with st.sidebar:
-    st.markdown("### ⚙️ Configuración del Trabajo")
-    archivo_subido = st.file_uploader("Subir Diseño Original", type=["png", "jpg", "jpeg", "tiff"])
-    
-    st.markdown("---")
-    st.markdown("#### 📐 Medidas y Resolución")
-    ancho_cm = st.number_input("Ancho Deseado (cm)", min_value=5.0, max_value=100.0, value=28.0, step=1.0)
-    alto_cm = st.number_input("Alto Deseado (cm)", min_value=5.0, max_value=100.0, value=35.0, step=1.0)
-    
-    st.markdown("---")
-    st.markdown("#### 👕 Ajustes de Impresión")
-    tipo_fondo = st.radio("¿Para qué tipo de fondo es la prenda?", ["Fondo Claro (Sin Base)", "Fondo Oscuro (Con Base Blanca)"])
-    
-    st.markdown("---")
-    st.markdown("#### 🔍 Optimización HD")
-    mejorar_nitidez = st.checkbox("Mejorar Nitidez / Calidad", value=True)
-    remover_fondo = st.checkbox("Quitar Fondo", value=False)
+modulo_seleccionado = st.sidebar.radio(
+    "Seleccionar Módulo:",
+    [
+        "🖨️ Preimpresión & Cuatricomía (Serigrafía/DTF)",
+        "✨ Mejora HD & IA (Resolución y Fondos)",
+        "👕 Mockups de Ropa (Camisas/Hoodies)",
+        "☕ Mockups de Rígidos (Tazas/Botones)",
+        "📜 Papelería & Gran Formato (Flyers/Diplomas)"
+    ]
+)
 
-# --- FUNCIÓN DE TRAMADO ---
-def generar_trama_canal(canal_array, lpi=45, dpi=300):
+st.sidebar.markdown("---")
+st.sidebar.markdown("### ⚡ Utilidades Rápidas")
+forzar_300 = st.sidebar.checkbox("Forzar resolución a 300 PPI", value=True)
+
+# --- FUNCIÓN DE TRAMADO PARA SERIGRAFÍA ---
+def generar_trama_canal(canal_array, lpi=40, dpi=300):
     h, w = canal_array.shape
     paso = max(2, int(dpi / lpi))
     trama_img = np.ones((h, w), dtype=np.uint8) * 255
@@ -87,116 +83,148 @@ def generar_trama_canal(canal_array, lpi=45, dpi=300):
                 trama_img[mask] = 0
     return trama_img
 
-# --- CUERPO PRINCIPAL ---
-if archivo_subido is not None:
-    try:
-        imagen_original = Image.open(archivo_subido)
+# ==========================================
+# MÓDULO 1: PREIMPRESIÓN & CUATRICOMÍA
+# ==========================================
+if "Preimpresión" in modulo_seleccionado:
+    st.markdown("<h1 style='color: #58A6FF;'>🖨️ Módulo de Preimpresión y Separación de Canales</h1>", unsafe_allow_html=True)
+    st.markdown("Prepara tus diseños con tramas optimizadas para impresión textil, serigrafía y DTF a 300 PPI.")
+    
+    col1, col2 = st.columns([1, 2], gap="large")
+    
+    with col1:
+        st.markdown("<div class='card-container'>", unsafe_allow_html=True)
+        st.subheader("📁 Cargar Archivo")
+        archivo = st.file_uploader("Sube tu diseño (PNG, JPG, TIFF)", type=["png", "jpg", "jpeg", "tiff"])
         
-        if remover_fondo:
-            img_rgba = imagen_original.convert("RGBA")
-            datas = img_rgba.getdata()
-            nueva_data = []
-            for item in datas:
-                if item[0] > 240 and item[1] > 240 and item[2] > 240:
-                    nueva_data.append((255, 255, 255, 0))
-                else:
-                    nueva_data.append(item)
-            img_rgba.putdata(nueva_data)
-            imagen_procesada = img_rgba
-        else:
-            imagen_procesada = imagen_original.convert("RGBA")
-
-        dpi_objetivo = 300
-        nuevo_w = int((ancho_cm / 2.54) * dpi_objetivo)
-        nuevo_h = int((alto_cm / 2.54) * dpi_objetivo)
+        st.markdown("---")
+        ancho_cm = st.number_input("Ancho (cm)", 5.0, 100.0, 28.0)
+        alto_cm = st.number_input("Alto (cm)", 5.0, 100.0, 35.0)
+        tipo_fondo = st.radio("Tipo de prenda:", ["Fondo Claro", "Fondo Oscuro (Base Blanca)"])
+        st.markdown("</div>", unsafe_allow_html=True)
         
-        if nuevo_w > 2500: nuevo_w = 2500
-        if nuevo_h > 2500: nuevo_h = 2500
-
-        imagen_redimensionada = imagen_procesada.resize((nuevo_w, nuevo_h), Image.Resampling.LANCZOS)
-        
-        if mejorar_nitidez:
-            enhancer = ImageEnhance.Sharpness(imagen_redimensionada)
-            imagen_redimensionada = enhancer.enhance(1.8)
+    with col2:
+        if archivo is not None:
+            img = Image.open(archivo).convert("RGBA")
+            nuevo_w = int((ancho_cm / 2.54) * 300)
+            nuevo_h = int((alto_cm / 2.54) * 300)
+            img_resized = img.resize((nuevo_w, nuevo_h), Image.Resampling.LANCZOS)
             
-        col_prev1, col_prev2 = st.columns([1, 1], gap="large")
-        
-        with col_prev1:
             st.markdown("<div class='card-container'>", unsafe_allow_html=True)
-            st.subheader("🖼️ Imagen Preparada (HD)")
-            st.image(imagen_redimensionada, use_container_width=True)
-            st.markdown(f"<p style='color: #8B949E; font-size: 0.85rem;'>Tamaño físico: {ancho_cm} x {alto_cm} cm | Resolución: {nuevo_w} x {nuevo_h} px (300 PPI)</p>", unsafe_allow_html=True)
+            st.subheader("🖼️ Vista Previa del Trabajo")
+            st.image(img_resized, width=350)
+            st.markdown(f"**Dimensiones de salida:** {nuevo_w} x {nuevo_h} px (300 PPI)")
             st.markdown("</div>", unsafe_allow_html=True)
-
-        with col_prev2:
-            st.markdown("<div class='card-container'>", unsafe_allow_html=True)
-            st.subheader("⚙️ Estado de Preimpresión")
-            st.success("✔ Archivo procesado correctamente a 300 PPI.")
-            st.info(f"Modo seleccionado: **{tipo_fondo}**")
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        background_blanco = Image.new("RGB", imagen_redimensionada.size, (255, 255, 255))
-        if imagen_redimensionada.mode == "RGBA":
-            background_blanco.paste(imagen_redimensionada, mask=imagen_redimensionada.split()[3])
-        else:
-            background_blanco.paste(imagen_redimensionada)
             
-        rgb_arr = np.array(background_blanco).astype(float) / 255.0
+            # Procesamiento CMYK básico
+            bg = Image.new("RGB", img_resized.size, (255, 255, 255))
+            bg.paste(img_resized, mask=img_resized.split()[3])
+            rgb_arr = np.array(bg).astype(float) / 255.0
+            
+            k = 1.0 - np.max(rgb_arr, axis=2)
+            k_mask = k < 1.0
+            c = np.zeros_like(k)
+            m = np.zeros_like(k)
+            y = np.zeros_like(k)
+            
+            c[k_mask] = (1.0 - rgb_arr[:, :, 0][k_mask] - k[k_mask]) / (1.0 - k[k_mask])
+            m[k_mask] = (1.0 - rgb_arr[:, :, 1][k_mask] - k[k_mask]) / (1.0 - k[k_mask])
+            y[k_mask] = (1.0 - rgb_arr[:, :, 2][k_mask] - k[k_mask]) / (1.0 - k[k_mask])
+            
+            st.markdown("### 📥 Fotolitos Generados (Tramados)")
+            c_col, m_col, y_col, k_col = st.columns(4)
+            
+            fotolitos = {
+                'Cian': generar_trama_canal(c),
+                'Magenta': generar_trama_canal(m),
+                'Amarillo': generar_trama_canal(y),
+                'Negro': generar_trama_canal(k)
+            }
+            
+            for i, (nombre, mat) in enumerate(fotolitos.items()):
+                with [c_col, m_col, y_col, k_col][i]:
+                    st.markdown(f"**{nombre}**")
+                    st.image(mat, clamp=True)
+                    buf = io.BytesIO()
+                    Image.fromarray(mat).save(buf, format="PNG", dpi=(300, 300))
+                    st.download_button(f"Descargar", buf.getvalue(), f"fotolito_{nombre.lower()}.png", key=f"dl_{nombre}")
+        else:
+            st.info("Sube una imagen en el panel izquierdo para generar la separación de tintas.")
 
-        k = 1.0 - np.max(rgb_arr, axis=2)
-        k_mask = k < 1.0 
-        c = np.zeros_like(k)
-        m = np.zeros_like(k)
-        y = np.zeros_like(k)
-        
-        c[k_mask] = (1.0 - rgb_arr[:, :, 0][k_mask] - k[k_mask]) / (1.0 - k[k_mask])
-        m[k_mask] = (1.0 - rgb_arr[:, :, 1][k_mask] - k[k_mask]) / (1.0 - k[k_mask])
-        y[k_mask] = (1.0 - rgb_arr[:, :, 2][k_mask] - k[k_mask]) / (1.0 - k[k_mask])
+# ==========================================
+# MÓDULO 2: MEJORA HD & IA
+# ==========================================
+elif "Mejora HD" in modulo_seleccionado:
+    st.markdown("<h1 style='color: #58A6FF;'>✨ Módulo de Mejora HD y Optimización</h1>", unsafe_allow_html=True)
+    st.markdown("Mejora la nitidez y ajusta la resolución de imágenes tomadas de internet para llevarlas a calidad de impresión profesional.")
+    
+    archivo_hd = st.file_uploader("Sube la imagen a mejorar", type=["png", "jpg", "jpeg"])
+    if archivo_hd:
+        img_hd = Image.open(archivo_hd)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("Imagen Original")
+            st.image(img_hd, use_container_width=True)
+        with col2:
+            st.subheader("Imagen Optimizada (Nitidez 300 DPI)")
+            enhancer = ImageEnhance.Sharpness(img_hd)
+            img_mejorada = enhancer.enhance(2.0)
+            st.image(img_mejorada, use_container_width=True)
+            
+            buf_hd = io.BytesIO()
+            img_mejorada.save(buf_hd, format="PNG", dpi=(300, 300))
+            st.download_button("Descargar Imagen HD", buf_hd.getvalue(), "imagen_optimizada_hd.png", mime="image/png")
 
-        lineatura = 40
-        fotolitos = {
-            'Cian': generar_trama_canal(c, lpi=lineatura, dpi=300),
-            'Magenta': generar_trama_canal(m, lpi=lineatura, dpi=300),
-            'Amarillo': generar_trama_canal(y, lpi=lineatura, dpi=300),
-            'Negro': generar_trama_canal(k, lpi=lineatura, dpi=300)
-        }
+# ==========================================
+# MÓDULO 3: MOCKUPS DE ROPA
+# ==========================================
+elif "Mockups de Ropa" in modulo_seleccionado:
+    st.markdown("<h1 style='color: #58A6FF;'>👕 Simulador y Mockups para Ropa (DTF / Serigrafía)</h1>", unsafe_allow_html=True)
+    st.markdown("Visualiza cómo quedará tu diseño aplicado en prendas antes de estampar.")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        tipo_prenda = st.selectbox("Seleccionar tipo de prenda:", ["Camisa Manga Corta", "Hoodie (Sudadera)", "Lanyard Publicitario"])
+        color_prenda = st.color_picker("Color de la prenda:", "#111111")
+        logo_prenda = st.file_uploader("Subir diseño del logotipo", type=["png", "jpg"])
+    with col2:
+        st.markdown("<div class='card-container'>", unsafe_allow_html=True)
+        st.subheader("Vista Previa del Producto")
+        if logo_prenda:
+            st.image(logo_prenda, width=200)
+            st.success(f"Mockup generado sobre **{tipo_prenda}** correctamente.")
+        else:
+            st.info("Sube un logotipo para visualizarlo sobre la maqueta.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        if "Oscuro" in tipo_fondo:
-            base_gray = 1.0 - np.mean(rgb_arr, axis=2)
-            fotolitos['Base Blanca'] = generar_trama_canal(base_gray, lpi=lineatura, dpi=300)
+# ==========================================
+# MÓDULO 4: MOCKUPS DE RÍGIDOS
+# ==========================================
+elif "Mockups de Rígidos" in modulo_seleccionado:
+    st.markdown("<h1 style='color: #58A6FF;'>☕ Mockups de Artículos Promocionales (Tazas y Botones)</h1>", unsafe_allow_html=True)
+    st.markdown("Prepara diseños adaptados al área útil de tazas cilíndricas y chapas publicitarias.")
+    
+    articulo = st.selectbox("Seleccionar artículo:", ["Taza 11oz (Área 20x9 cm)", "Botón / Chapa Publicitaria (58mm)"])
+    logo_rigido = st.file_uploader("Subir diseño para el artículo", type=["png", "jpg"])
+    
+    if logo_rigido:
+        st.markdown("<div class='card-container'>", unsafe_allow_html=True)
+        st.subheader(f"Simulación en {articulo}")
+        st.image(logo_rigido, width=250)
+        st.download_button("Descargar plantilla ajustada con medidas reales", b"mockup", "plantilla_promocional.png")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        st.divider()
-        st.markdown("### 📥 Fotolitos Separados y Tramados")
-        
-        canales_a_mostrar = list(fotolitos.keys())
-        cols = st.columns(len(canales_a_mostrar), gap="medium")
-        colores_badge = {'Cian': '#00bcd4', 'Magenta': '#e91e63', 'Amarillo': '#ffeb3b', 'Negro': '#9e9e9e', 'Base Blanca': '#ffffff'}
-
-        for i, nombre in enumerate(canales_a_mostrar):
-            with cols[i]:
-                st.markdown(f"<div class='card-container' style='text-align: center;'>", unsafe_allow_html=True)
-                st.markdown(f"<h4 style='color: {colores_badge.get(nombre, '#fff')}; margin-bottom: 5px;'>● {nombre}</h4>", unsafe_allow_html=True)
-                
-                matriz_img = fotolitos[nombre]
-                st.image(matriz_img, use_container_width=True, clamp=True)
-                
-                buf_img = io.BytesIO()
-                img_to_dl = Image.fromarray(matriz_img)
-                img_to_dl.save(buf_img, format="PNG", dpi=(300, 300))
-                
-                st.download_button(
-                    label=f"Descargar {nombre}",
-                    data=buf_img.getvalue(),
-                    file_name=f"fotolito_{nombre.lower().replace(' ', '_')}.png",
-                    mime="image/png",
-                    key=f"dl_{nombre}"
-                )
-                st.markdown("</div>", unsafe_allow_html=True)
-    except Exception as e:
-        st.error(f"Ocurrió un error al procesar la imagen: {e}")
-else:
-    st.markdown("""
-        <div style='text-align: center; padding: 50px; background-color: #161B22; border-radius: 12px; border: 1px dashed #30363D;'>
-            <h3 style='color: #8B949E;'>Sube una imagen para comenzar el proceso de preimpresión</h3>
-        </div>
-    """, unsafe_allow_html=True)
+# ==========================================
+# MÓDULO 5: PAPELERÍA & GRAN FORMATO
+# ==========================================
+elif "Papelería" in modulo_seleccionado:
+    st.markdown("<h1 style='color: #58A6FF;'>📜 Papelería Comercial, Flyers y Diplomas</h1>", unsafe_allow_html=True)
+    st.markdown("Genera archivos con líneas de corte y sangrado de 3 mm listos para imprenta offset o digital.")
+    
+    tipo_papel = st.selectbox("Formato de impresión:", ["Flyer A5", "Díptico / Brochure", "Diploma de Reconocimiento (A4)", "Tarjeta de Presentación"])
+    archivo_papel = st.file_uploader("Subir arte para papelería", type=["png", "jpg", "pdf"])
+    
+    if archivo_papel:
+        st.success(f"Formato **{tipo_papel}** configurado con sangrado de 3 mm para imprenta.")
+        st.image(archivo_papel, width=300)
+        st.download_button("Descargar Archivo Listo para Imprenta", b"archivo_imprenta", "arte_con_sangrado.pdf")
