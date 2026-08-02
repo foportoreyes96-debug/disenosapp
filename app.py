@@ -152,7 +152,7 @@ if "Preimpresión" in modulo_seleccionado:
                         st.image(mat, clamp=True)
                         buf = io.BytesIO()
                         Image.fromarray(mat).save(buf, format="PNG", dpi=(300, 300))
-                        st.download_button(f"Descargar", buf.getvalue(), f"fotolito_{nombre.lower()}.png", key=f"dl_{nombre}")
+                        st.download_button("Descargar", buf.getvalue(), f"fotolito_{nombre.lower()}.png", key=f"dl_{nombre}")
             except Exception as e:
                 st.error(f"Error procesando la imagen: {e}")
         else:
