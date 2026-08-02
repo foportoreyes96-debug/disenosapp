@@ -1,5 +1,5 @@
 import streamlit as st
-from PIL import Image, ImageOps, ImageEnhance
+from PIL import Image, ImageEnhance
 import numpy as np
 import io
 
@@ -46,7 +46,7 @@ st.markdown("""
 
 # --- CABECERA ---
 st.markdown("<h1 style='text-align: center; color: #58A6FF;'>🖨️ Estación de Preimpresión y Cuatricomía</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #8B949E;'>Preparación de archivos, reescalado HD, remoción de fondo y separación de tramas a 300 PPI.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #8B949E;'>Preparación de archivos, reescalado HD y separación de tramas a 300 PPI con vista previa final.</p>", unsafe_allow_html=True)
 st.divider()
 
 # --- PANEL DE CONTROL (BARRA LATERAL) ---
@@ -66,7 +66,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("#### 🔍 Optimización HD")
     mejorar_nitidez = st.checkbox("Mejorar Nitidez / Calidad (Estilo Megapíxel)", value=True)
-    remover_fondo = st.checkbox("Quitar Fondo Automático (Hacer PNG Transparente)", value=True)
+    remover_fondo = st.checkbox("Quitar Fondo (Solo siluetas aisladas)", value=False)
 
 # --- FUNCIÓN PARA GENERAR TRAMAS DE SEMITONOS (HALFTONE) ---
 def generar_trama_canal(canal_array, lpi=45, dpi=300, angulo=0):
@@ -79,7 +79,6 @@ def generar_trama_canal(canal_array, lpi=45, dpi=300, angulo=0):
     x_rot = x_coords * np.cos(angle_rad) - y_coords * np.sin(angle_rad)
     y_rot = x_coords * np.sin(angle_rad) + y_coords * np.cos(angle_rad)
     
-    # Matriz de semitonos basada en senos
     trama_matriz = (np.sin(2 * np.pi * x_rot / grid_size) + np.sin(2 * np.pi * y_rot / grid_size)) / 4.0 + 0.5
     trama_matriz = (trama_matriz * 255).astype(np.uint8)
     
@@ -91,13 +90,11 @@ def generar_trama_canal(canal_array, lpi=45, dpi=300, angulo=0):
 if archivo_subido is not None:
     imagen_original = Image.open(archivo_subido)
     
-    # 1. Remoción de fondo básica (umbral de blancos)
     if remover_fondo:
         img_rgba = imagen_original.convert("RGBA")
         datas = img_rgba.getdata()
         nueva_data = []
         for item in datas:
-            # Si el píxel es muy blanco, lo volvemos transparente
             if item[0] > 240 and item[1] > 240 and item[2] > 240:
                 nueva_data.append((255, 255, 255, 0))
             else:
@@ -107,53 +104,44 @@ if archivo_subido is not None:
     else:
         imagen_procesada = imagen_original.convert("RGBA")
 
-    # 2. Reescalado a 300 PPI según medidas en cm (1 pulgada = 2.54 cm)
+    # Reescalado a 300 PPI
     dpi_objetivo = 300
     nuevo_w = int((ancho_cm / 2.54) * dpi_objetivo)
     nuevo_h = int((alto_cm / 2.54) * dpi_objetivo)
     
-    # Redimensionar con alta calidad de interpolación (Simulando mejora de resolución)
     imagen_redimensionada = imagen_procesada.resize((nuevo_w, nuevo_h), Image.Resampling.LANCZOS)
     
     if mejorar_nitidez:
         enhancer = ImageEnhance.Sharpness(imagen_redimensionada)
         imagen_redimensionada = enhancer.enhance(1.8)
         
-    # Mostrar vista previa e información
     col_prev1, col_prev2 = st.columns([1, 1], gap="large")
     
     with col_prev1:
         st.markdown("<div class='card-container'>", unsafe_allow_html=True)
         st.subheader("🖼️ Imagen Preparada (HD)")
         st.image(imagen_redimensionada, use_container_width=True)
-        st.markdown(f"<p style='color: #8B949E; font-size: 0.85rem;'>Tamaño físico configurado: {ancho_cm} x {alto_cm} cm | Resolución: {nuevo_w} x {nuevo_h} px (300 PPI)</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='color: #8B949E; font-size: 0.85rem;'>Tamaño físico: {ancho_cm} x {alto_cm} cm | Resolución: {nuevo_w} x {nuevo_h} px (300 PPI)</p>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
-        
-        # Botón para descargar el diseño limpio sin fondo en PNG
-        buf_png = io.BytesIO()
-        imagen_redimensionada.save(buf_png, format="PNG")
-        st.download_button(
-            label="📥 Descargar Diseño Limpio (PNG Sin Fondo)",
-            data=buf_png.getvalue(),
-            file_name="diseno_limpio_hd.png",
-            mime="image/png"
-        )
 
     with col_prev2:
         st.markdown("<div class='card-container'>", unsafe_allow_html=True)
         st.subheader("⚙️ Estado de Preimpresión")
-        st.success("✔ Imagen escalada a 300 PPI correctamente.")
+        st.success("✔ Archivo procesado correctamente a 300 PPI.")
         st.info(f"Modo seleccionado: **{tipo_fondo}**")
-        st.markdown("Los ángulos de trama aplicados están configurados bajo norma serigráfica:")
-        st.markdown("- **Cian:** 15°\n- **Magenta:** 75°\n- **Amarillo:** 0°\n- **Negro:** 45°")
+        st.markdown("Ángulos de trama aplicados:")
+        st.markdown("- **Cian:** 15° | **Magenta:** 75° | **Amarillo:** 0° | **Negro:** 45°")
         if "Oscuro" in tipo_fondo:
             st.markdown("- **Base Blanca:** 22.5°")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- PROCESO DE SEPARACIÓN CMYK Y TRAMADO ---
-    # Convertir a RGB sobre fondo blanco para la separación matemática
+    # Conversión a RGB para separación CMYK
     background_blanco = Image.new("RGB", imagen_redimensionada.size, (255, 255, 255))
-    background_blanco.paste(imagen_redimensionada, mask=imagen_redimensionada.split()[3])
+    if imagen_redimensionada.mode == "RGBA":
+        background_blanco.paste(imagen_redimensionada, mask=imagen_redimensionada.split()[3])
+    else:
+        background_blanco.paste(imagen_redimensionada)
+        
     rgb_arr = np.array(background_blanco).astype(float) / 255.0
 
     # Fórmulas CMYK
@@ -167,7 +155,7 @@ if archivo_subido is not None:
     m[k_mask] = (1.0 - rgb_arr[:, :, 1][k_mask] - k[k_mask]) / (1.0 - k[k_mask])
     y[k_mask] = (1.0 - rgb_arr[:, :, 2][k_mask] - k[k_mask]) / (1.0 - k[k_mask])
 
-    # Generar tramas (Halftone) con los ángulos solicitados a 45 LPI y 300 PPI
+    # Generación de fotolitos tramados a 45 LPI
     lineatura = 45
     fotolitos = {
         'Cian': generar_trama_canal(c, lpi=lineatura, dpi=300, angulo=15),
@@ -177,14 +165,45 @@ if archivo_subido is not None:
     }
 
     if "Oscuro" in tipo_fondo:
-        # Generar base blanca basada en la luminosidad general invertida
         base_gray = 1.0 - np.mean(rgb_arr, axis=2)
         fotolitos['Base Blanca'] = generar_trama_canal(base_gray, lpi=lineatura, dpi=300, angulo=22.5)
+
+    # --- SIMULACIÓN DE VISTA PREVIA FINAL (COMPOSITE) ---
+    # Reconstruimos visualmente la simulación combinando los puntos de las tramas
+    c_inv = 1.0 - (fotolitos['Cian'].astype(float) / 255.0)
+    m_inv = 1.0 - (fotolitos['Magenta'].astype(float) / 255.0)
+    y_inv = 1.0 - (fotolitos['Amarillo'].astype(float) / 255.0)
+    k_inv = 1.0 - (fotolitos['Negro'].astype(float) / 255.0)
+    
+    r_sim = np.clip(1.0 - (c_inv + k_inv), 0, 1)
+    g_sim = np.clip(1.0 - (m_inv + k_inv), 0, 1)
+    b_sim = np.clip(1.0 - (y_inv + k_inv), 0, 1)
+    simulacion_rgb = np.stack([r_sim, g_sim, b_sim], axis=2)
+    simulacion_img = Image.fromarray((simulacion_rgb * 255).astype(np.uint8))
+
+    st.divider()
+    st.markdown("### 👁️ Vista Previa del Resultado Final (Simulación de Impresión)")
+    st.markdown("Así es como el cliente puede visualizar el resultado combinado de las tramas antes de llevarlas a producción:")
+    
+    col_sim1, col_sim2 = st.columns([1, 2], gap="large")
+    with col_sim1:
+        st.markdown("<div class='card-container' style='text-align: center;'>", unsafe_allow_html=True)
+        st.subheader("Resultado Tramado")
+        st.image(simulacion_img, use_container_width=True)
+        st.markdown("<p style='color: #8B949E; font-size: 0.85rem;'>Simulación de puntos CMYK combinados</p>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+    with col_sim2:
+        st.markdown("<div class='card-container'>", unsafe_allow_html=True)
+        st.subheader("💡 Control de Calidad para el Cliente")
+        st.markdown("Esta vista combina matemáticamente los canales tramados para asegurar que:")
+        st.markdown("- No existan zonas con exceso de ganancia de punto.")
+        st.markdown("- Los detalles finos y textos negros mantengan su nitidez.")
+        st.markdown("- La retícula de puntos de la cuatricomía sea totalmente armónica.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
     st.divider()
     st.markdown("### 📥 Fotolitos Separados y Tramados (Listos para Impresión)")
     
-    # Mostrar columnas dinámicamente según si hay base o no
     canales_a_mostrar = list(fotolitos.keys())
     cols = st.columns(len(canales_a_mostrar), gap="medium")
     colores_badge = {'Cian': '#00bcd4', 'Magenta': '#e91e63', 'Amarillo': '#ffeb3b', 'Negro': '#9e9e9e', 'Base Blanca': '#ffffff'}
@@ -197,7 +216,6 @@ if archivo_subido is not None:
             matriz_img = fotolitos[nombre]
             st.image(matriz_img, use_container_width=True, clamp=True)
             
-            # Botón de descarga en PNG con 300 DPI incrustados
             buf_img = io.BytesIO()
             img_to_dl = Image.fromarray(matriz_img)
             img_to_dl.save(buf_img, format="PNG", dpi=(300, 300))
@@ -210,7 +228,6 @@ if archivo_subido is not None:
                 key=f"dl_{nombre}"
             )
             
-            # Botón de descarga en PDF para cada fotolito
             buf_pdf = io.BytesIO()
             img_to_dl.save(buf_pdf, format="PDF", resolution=300)
             st.download_button(
@@ -225,6 +242,6 @@ else:
     st.markdown("""
         <div style='text-align: center; padding: 50px; background-color: #161B22; border-radius: 12px; border: 1px dashed #30363D;'>
             <h3 style='color: #8B949E;'>Sube una imagen para comenzar el proceso de preimpresión</h3>
-            <p style='color: #484F58;'>Usa el panel izquierdo para cargar tu diseño, definir las medidas en cm y seleccionar el tipo de fondo.</p>
+            <p style='color: #484F58;'>Usa el panel izquierdo para cargar tu diseño, definir las medidas en cm y ver la simulación final.</p>
         </div>
     """, unsafe_allow_html=True)
