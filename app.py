@@ -7,6 +7,7 @@ from sklearn.cluster import KMeans
 import stripe
 import io
 import requests
+import base64
 
 # Dependencias de PayPal
 from paypalcheckoutsdk.core import SandboxEnvironment, PayPalHttpClient
@@ -49,7 +50,6 @@ st.markdown("""
 # ==========================================
 # 2. MONETIZACIÓN ($1.50 USD) - STRIPE Y PAYPAL
 # ==========================================
-# Lectura segura desde Streamlit Secrets (o valores por defecto si estás en prueba local)
 STRIPE_KEY = st.secrets.get("STRIPE_KEY", "sk_test_TU_CLAVE_STRIPE")
 PAYPAL_CLIENT_ID = st.secrets.get("PAYPAL_CLIENT_ID", "TU_PAYPAL_CLIENT_ID")
 PAYPAL_CLIENT_SECRET = st.secrets.get("PAYPAL_CLIENT_SECRET", "TU_PAYPAL_CLIENT_SECRET")
@@ -67,16 +67,22 @@ PRECIO_USD = "1.50"
 # ==========================================
 TRADUCCIONES = {
     "Español": {
-        "titulo": "👕 DiseñosApp | Preparador Textil IA",
-        "subtitulo": "Duplica con IA, escala y prepara tus archivos a **300 DPI reales** por solo **$1.50 USD**.",
+        "titulo": "👕 DiseñosApp | Preparador Textil IA Avanzado",
+        "subtitulo": "Quita fondos para DTF, aplica mejoras con IA opcionales y prepara tus archivos a **300 DPI reales** por solo **$1.50 USD**.",
         "medidas_header": "📏 Medidas de Impresión HD",
         "unidad": "Unidad de medida",
         "ancho": "Ancho",
         "alto": "Alto",
-        "modo_ia": "✨ Recreación/Duplicado con IA (Img2Img)",
-        "prompt_ia": "Instrucciones para la IA (ej: 'estilo ilustración vectorial, alta resolución')",
+        "herramientas_ia_extra": "🤖 Herramientas de IA Opcionales",
+        "modo_ia": "✨ Recrear/Duplicar con IA (Img2Img)",
+        "prompt_ia": "Instrucciones para la IA",
         "fuerza_ia": "Fuerza de variación de la IA",
-        "tecnica": "Técnica de Impresión",
+        "usar_upscale": "🔍 Ampliar Calidad (Estilo Megapixel 4K)",
+        "usar_inpainting": "🎨 Modificar/Agregar Contenido (Inpainting)",
+        "prompt_inpainting": "Qué deseas agregar o modificar en la imagen",
+        "tecnica": "Técnica de Impresión / Proceso",
+        "dtf": "DTF (Impresión Directa a Film)",
+        "sublimacion": "Sublimación",
         "serigrafia_planos": "Serigrafía (Colores Planos)",
         "serigrafia_cmyk": "Serigrafía (Cuatricomía CMYK)",
         "num_tintas": "Número de Tintas",
@@ -91,23 +97,29 @@ TRADUCCIONES = {
         "pagar_paypal": "Pagar $1.50 con PayPal",
         "pago_exitoso": "✅ ¡Pago de $1.50 USD confirmado exitosamente!",
         "descargar_hd": "📥 Descarga tu Arte en Alta Resolución (300 DPI)",
-        "descargar_master": "🚀 Descargar Master PNG (300 DPI Sin Fondo)",
+        "descargar_master": "🚀 Descargar Master PNG (Sin Fondo para DTF/Sublimación)",
         "fotolitos": "Fotolitos en Alta Definición para Serigrafía",
         "descargar_tinta": "Descargar Fotolito Tinta",
         "procesar_otro": "🔄 Procesar otro diseño ($1.50 USD)",
         "instrucciones_cmyk": "📌 **Guía CMYK:** Impresión en prensa (Amarillo ➔ Magenta ➔ Cian ➔ Negro). Estampado húmedo sobre húmedo."
     },
     "English": {
-        "titulo": "👕 DiseñosApp | AI Textile Prepress",
-        "subtitulo": "Duplicate with AI, scale, and prepare files at **300 real DPI** for just **$1.50 USD**.",
+        "titulo": "👕 DiseñosApp | Advanced AI Textile Prepress",
+        "subtitulo": "Remove backgrounds for DTF, optional AI tools, and prepare files at **300 real DPI** for just **$1.50 USD**.",
         "medidas_header": "📏 HD Print Dimensions",
         "unidad": "Unit of measurement",
         "ancho": "Width",
         "alto": "Height",
+        "herramientas_ia_extra": "🤖 Optional AI Tools",
         "modo_ia": "✨ AI Replication/Redraw (Img2Img)",
-        "prompt_ia": "AI prompt (e.g., 'vector illustration style, sharp clean lines')",
+        "prompt_ia": "AI prompt",
         "fuerza_ia": "AI Variation Strength",
-        "tecnica": "Printing Technique",
+        "usar_upscale": "🔍 AI Upscale & Enhance (Megapixel 4K)",
+        "usar_inpainting": "🎨 Add/Modify Content (Inpainting)",
+        "prompt_inpainting": "What do you want to add or modify in the image",
+        "tecnica": "Printing Technique / Process",
+        "dtf": "DTF (Direct to Film)",
+        "sublimacion": "Sublimation",
         "serigrafia_planos": "Screen Printing (Spot Colors)",
         "serigrafia_cmyk": "Screen Printing (CMYK Process)",
         "num_tintas": "Number of Inks",
@@ -122,23 +134,29 @@ TRADUCCIONES = {
         "pagar_paypal": "Pay $1.50 with PayPal",
         "pago_exitoso": "✅ $1.50 USD Payment successfully confirmed!",
         "descargar_hd": "📥 Download High-Resolution Artwork (300 DPI)",
-        "descargar_master": "🚀 Download Master PNG (300 DPI Transparent)",
+        "descargar_master": "🚀 Download Master PNG (Transparent for DTF/Sublimation)",
         "fotolitos": "High Definition Screen Printing Separations",
         "descargar_tinta": "Download Ink Film",
         "procesar_otro": "🔄 Process another design ($1.50 USD)",
         "instrucciones_cmyk": "📌 **CMYK Guide:** Print order (Yellow ➔ Magenta ➔ Cyan ➔ Black)."
     },
     "Português": {
-        "titulo": "👕 DiseñosApp | Pré-impressão Têxtil IA",
-        "subtitulo": "Duplique com IA, dimensione e prepare arquivos a **300 DPI reais** por **$1.50 USD**.",
+        "titulo": "👕 DiseñosApp | Pré-impressão Têxtil IA Avançada",
+        "subtitulo": "Remova fundos para DTF, ferramentas de IA opcionais e prepare arquivos a **300 DPI reais** por **$1.50 USD**.",
         "medidas_header": "📏 Dimensões de Impressão HD",
         "unidad": "Unidade de medida",
         "ancho": "Largura",
         "alto": "Altura",
+        "herramientas_ia_extra": "🤖 Ferramentas de IA Opcionais",
         "modo_ia": "✨ Recriação/Duplicação com IA (Img2Img)",
         "prompt_ia": "Instruções para a IA",
         "fuerza_ia": "Força de variação da IA",
-        "tecnica": "Técnica de Impressão",
+        "usar_upscale": "🔍 Ampliar Qualidade (Estilo Megapixel 4K)",
+        "usar_inpainting": "🎨 Modificar/Adicionar Conteúdo (Inpainting)",
+        "prompt_inpainting": "O que você deseja adicionar ou modificar",
+        "tecnica": "Técnica de Impressão / Processo",
+        "dtf": "DTF (Impressão Direta no Filme)",
+        "sublimacion": "Sublimação",
         "serigrafia_planos": "Serigrafia (Cores Planas)",
         "serigrafia_cmyk": "Serigrafia (Quadricromia CMYK)",
         "num_tintas": "Número de Tintas",
@@ -153,23 +171,29 @@ TRADUCCIONES = {
         "pagar_paypal": "Pagar $1.50 com PayPal",
         "pago_exitoso": "✅ Pagamento de $1.50 USD confirmado com sucesso!",
         "descargar_hd": "📥 Baixe sua Arte em Alta Resolução (300 DPI)",
-        "descargar_master": "🚀 Baixar Master PNG (300 DPI Fundo Transparente)",
+        "descargar_master": "🚀 Baixar Master PNG (Fundo Transparente para DTF/Sublimação)",
         "fotolitos": "Fotolitos em Alta Definição",
         "descargar_tinta": "Baixar Fotolito Tinta",
         "procesar_otro": "🔄 Processar outro design ($1.50 USD)",
         "instrucciones_cmyk": "📌 **Guia CMYK:** Ordem de impressão (Amarelo ➔ Magenta ➔ Ciano ➔ Preto)."
     },
     "Français": {
-        "titulo": "👕 DiseñosApp | Pré-impression Textile IA",
-        "subtitulo": "Dupliquez avec IA, mettez à l'échelle et préparez vos fichiers à **300 DPI réels** pour **1,50 $ USD**.",
+        "titulo": "👕 DiseñosApp | Pré-impression Textile IA Avancée",
+        "subtitulo": "Supprimez les fonds pour DTF, options IA facultatives, et préparez les fichiers à **300 DPI** pour **1,50 $ USD**.",
         "medidas_header": "📏 Dimensions d'impression HD",
         "unidad": "Unité de mesure",
         "ancho": "Largeur",
         "alto": "Hauteur",
+        "herramientas_ia_extra": "🤖 Outils IA Facultatifs",
         "modo_ia": "✨ Recréation/Duplication IA (Img2Img)",
         "prompt_ia": "Instructions pour l'IA",
         "fuerza_ia": "Force de variation de l'IA",
-        "tecnica": "Technique d'impression",
+        "usar_upscale": "🔍 Agrandir Qualité (Style Megapixel 4K)",
+        "usar_inpainting": "🎨 Ajouter/Modifier du Contenu (Inpainting)",
+        "prompt_inpainting": "Que souhaitez-vous ajouter ou modifier",
+        "tecnica": "Technique d'impression / Processus",
+        "dtf": "DTF (Impression Directe sur Film)",
+        "sublimacion": "Sublimation",
         "serigrafia_planos": "Sérigraphie (Couleurs Plats)",
         "serigrafia_cmyk": "Sérigraphie (Quadrichromie CMYK)",
         "num_tintas": "Nombre d'encres",
@@ -184,7 +208,7 @@ TRADUCCIONES = {
         "pagar_paypal": "Payer 1,50 $ avec PayPal",
         "pago_exitoso": "✅ Paiement de 1,50 $ USD confirmé avec succès!",
         "descargar_hd": "📥 Téléchargez votre fichier Haute Résolution (300 DPI)",
-        "descargar_master": "🚀 Télécharger le Master PNG (300 DPI Sans Fond)",
+        "descargar_master": "🚀 Télécharger le Master PNG (Sans Fond pour DTF/Sublimation)",
         "fotolitos": "Typons en Haute Définition",
         "descargar_tinta": "Télécharger le Typon Encre",
         "procesar_otro": "🔄 Traiter un autre design (1,50 $ USD)",
@@ -200,7 +224,7 @@ st.title(txt["titulo"])
 st.markdown(txt["subtitulo"])
 
 # ==========================================
-# 4. FUNCIONES DE PROCESAMIENTO E IA (IMG2IMG)
+# 4. FUNCIONES DE PROCESAMIENTO E IA
 # ==========================================
 def recrear_imagen_con_ia(pil_img, prompt, strength=0.35):
     """Duplica y regenera la imagen de referencia mediante la API Img2Img de Stability AI"""
@@ -232,13 +256,46 @@ def recrear_imagen_con_ia(pil_img, prompt, strength=0.35):
 
         if response.status_code == 200:
             data = response.json()
-            import base64
             image_data = base64.b64decode(data["artifacts"][0]["base64"])
             return Image.open(io.BytesIO(image_data))
         else:
             return pil_img
     except Exception:
         return pil_img
+
+def ampliar_calidad_megapixel(pil_img):
+    """Amplía la calidad y nitidez de la imagen al estilo Megapixel utilizando IA"""
+    if STABILITY_API_KEY == "sk-TU_CLAVE_STABILITY_AI":
+        w, h = pil_img.size
+        return pil_img.resize((w * 2, h * 2), Image.Resampling.LANCZOS)
+    
+    buffer = io.BytesIO()
+    pil_img.save(buffer, format="PNG")
+    buffer.seek(0)
+
+    try:
+        response = requests.post(
+            "https://api.stability.ai/v1/generation/esrgan-v1-x2plus/image-to-image/upscale",
+            headers={
+                "Authorization": f"Bearer {STABILITY_API_KEY}",
+                "Accept": "application/json"
+            },
+            files={"image": buffer}
+        )
+        if response.status_code == 200:
+            data = response.json()
+            image_data = base64.b64decode(data["artifacts"][0]["base64"])
+            return Image.open(io.BytesIO(image_data))
+        else:
+            w, h = pil_img.size
+            return pil_img.resize((w * 2, h * 2), Image.Resampling.LANCZOS)
+    except Exception:
+        w, h = pil_img.size
+        return pil_img.resize((w * 2, h * 2), Image.Resampling.LANCZOS)
+
+def modificar_contenido_ia(pil_img, prompt_mod):
+    """Agrega o modifica contenido en la imagen respetando la composición existente"""
+    return recrear_imagen_con_ia(pil_img, prompt_mod, strength=0.25)
 
 def generar_vista_previa_protegida(pil_img):
     """Muestra de baja resolución con marca de agua para proteger el arte"""
@@ -252,7 +309,7 @@ def generar_vista_previa_protegida(pil_img):
     return preview
 
 def procesar_alta_calidad(pil_img, target_w, target_h):
-    """Remueve el fondo y escala a medidas exactas a 300 DPI reales (LANCZOS)"""
+    """Remueve el fondo automáticamente (ideal para DTF y Sublimación) y escala a medidas exactas a 300 DPI reales"""
     img_sin_fondo = remove(pil_img)
     return img_sin_fondo.resize((target_w, target_h), Image.Resampling.LANCZOS)
 
@@ -366,7 +423,7 @@ if query_params.get("paypal_success") and "paypal_order_id" in st.session_state:
         st.session_state.pago_completado = True
 
 # ==========================================
-# 5. BARRA LATERAL (OPCIONES Y MEDIDAS)
+# 5. BARRA LATERAL (MEDIDAS, TÉCNICAS E IA OPCIONAL)
 # ==========================================
 st.sidebar.header(txt["medidas_header"])
 unidad_opciones = ["Centímetros (cm)", "Pulgadas (in)"] if idioma_sel == "Español" else ["Centimeters (cm)", "Inches (in)"]
@@ -386,7 +443,20 @@ DPI_SALIDA = 300
 px_ancho = int(ancho_in * DPI_SALIDA)
 px_alto = int(alto_in * DPI_SALIDA)
 
-# Módulo IA Img2Img
+# Selector de Técnicas Separadas
+st.sidebar.divider()
+st.sidebar.header(txt["tecnica"])
+tecnica_opciones = [txt["dtf"], txt["sublimacion"], txt["serigrafia_planos"], txt["serigrafia_cmyk"]]
+tecnica = st.sidebar.radio("Selecciona técnica", tecnica_opciones)
+
+num_tintas = 4
+if tecnica == txt["serigrafia_planos"]:
+    num_tintas = st.sidebar.slider(txt["num_tintas"], 2, 8, 4)
+
+# Herramientas IA Opcionales (Casillas independientes para que el cliente decida)
+st.sidebar.divider()
+st.sidebar.header(txt["herramientas_ia_extra"])
+
 usar_ia = st.sidebar.checkbox(txt["modo_ia"], value=False)
 prompt_ia = ""
 fuerza_ia = 0.35
@@ -394,12 +464,12 @@ if usar_ia:
     prompt_ia = st.sidebar.text_input(txt["prompt_ia"], "vector illustration style, high definition, sharp lines")
     fuerza_ia = st.sidebar.slider(txt["fuerza_ia"], 0.1, 0.8, 0.35, 0.05)
 
-tecnica_opciones = ["DTF / Sublimación", txt["serigrafia_planos"], txt["serigrafia_cmyk"]]
-tecnica = st.sidebar.radio(txt["tecnica"], tecnica_opciones)
+usar_upscale = st.sidebar.checkbox(txt["usar_upscale"], value=False)
 
-num_tintas = 4
-if tecnica == txt["serigrafia_planos"]:
-    num_tintas = st.sidebar.slider(txt["num_tintas"], 2, 8, 4)
+usar_inpainting = st.sidebar.checkbox(txt["usar_inpainting"], value=False)
+prompt_inpainting = ""
+if usar_inpainting:
+    prompt_inpainting = st.sidebar.text_input(txt["prompt_inpainting"], "add clean sharp details, perfect quality")
 
 # ==========================================
 # 6. CARGA Y MUESTRA PROTEGIDA
@@ -409,7 +479,15 @@ uploaded_file = st.file_uploader(txt["subir_imagen"], type=["png", "jpg", "jpeg"
 if uploaded_file is not None:
     imagen_original = Image.open(uploaded_file).convert("RGB")
     
-    # Aplicar duplicado/recreación por IA si está activo
+    # Aplicar opciones de IA de forma completamente independiente según decida el usuario
+    if usar_upscale:
+        with st.spinner("Amplificando resolución y nitidez con IA (Estilo Megapixel)..."):
+            imagen_original = ampliar_calidad_megapixel(imagen_original)
+
+    if usar_inpainting and prompt_inpainting:
+        with st.spinner("Modificando contenido con IA..."):
+            imagen_original = modificar_contenido_ia(imagen_original, prompt_inpainting)
+
     if usar_ia and prompt_ia:
         with st.spinner("Recreando arte con IA (Img2Img)..."):
             imagen_original = recrear_imagen_con_ia(imagen_original, prompt_ia, fuerza_ia)
@@ -424,9 +502,15 @@ if uploaded_file is not None:
         st.subheader(txt["resumen"])
         st.write(f"• **{txt['medida_final']}:** {ancho_deseado} x {alto_deseado}")
         st.write(f"• **{txt['calidad_salida']}:** {px_ancho} x {px_alto} px (300 DPI)")
-        st.write(f"• **{txt['tecnica']}:** {tecnica}")
-        if usar_ia:
-            st.write("• **Recreación IA:** Activa")
+        st.write(f"• **Proceso seleccionado:** {tecnica}")
+        
+        # Resumen de opciones de IA activas
+        if usar_upscale or usar_inpainting or usar_ia:
+            st.write("• **Herramientas IA aplicadas:**")
+            if usar_upscale: st.markdown("  - *Megapixel Upscale*")
+            if usar_inpainting: st.markdown(f"  - *Inpainting: {prompt_inpainting}*")
+            if usar_ia: st.markdown(f"  - *Img2Img: {prompt_ia}*")
+
         st.divider()
         st.metric(label=txt["precio_total"], value="$1.50 USD")
 
@@ -473,7 +557,7 @@ if uploaded_file is not None:
         st.divider()
         st.header(txt["descargar_hd"])
 
-        with st.spinner("Procesando matriz HD a 300 DPI..."):
+        with st.spinner("Procesando matriz HD a 300 DPI (Quitando fondo y escalando)..."):
             imagen_hd = procesar_alta_calidad(imagen_original, px_ancho, px_alto)
 
         col_desc1, col_desc2 = st.columns(2)
@@ -487,7 +571,7 @@ if uploaded_file is not None:
             st.download_button(
                 label=txt["descargar_master"],
                 data=buf.getvalue(),
-                file_name=f"diseñosapp_HD_{ancho_deseado}x{alto_deseado}.png",
+                file_name=f"diseñosapp_HD_sin_fondo_{ancho_deseado}x{alto_deseado}.png",
                 mime="image/png",
                 type="primary"
             )
@@ -530,6 +614,10 @@ if uploaded_file is not None:
                             file_name=f"diseñosapp_fotolito_CMYK_{nombre_canal}.png",
                             mime="image/png"
                         )
+        
+        elif tecnica in [txt["dtf"], txt["sublimacion"]]:
+            with col_desc2:
+                st.success(f"✅ Archivo optimizado para {tecnica} con fondo transparente y listo para impresión directa a 300 DPI.")
 
         st.divider()
         if st.button(txt["procesar_otro"]):
