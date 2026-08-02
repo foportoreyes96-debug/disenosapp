@@ -1,5 +1,5 @@
 import streamlit as st
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 import numpy as np
 import cv2
 from rembg import remove
@@ -86,7 +86,7 @@ TRADUCCIONES = {
         "prompt_ia": "Instrucciones de cambio de la gente",
         "fuerza_ia": "Fuerza de variación",
         "usar_upscale": "🔍 Ampliar Calidad (Estilo Megapixel 4K)",
-        "quitar_fondo_hd": "🪄 Quitar Fondo HD Inteligente (Sin perder calidad)",
+        "quitar_fondo_hd": "🪄 Quitar Fondo HD Limpio en PNG (Sin residuos en barba/bordes)",
         "tecnica": "Técnica de Impresión / Processo",
         "dtf": "DTF (Impresión Directa a Film)",
         "sublimacion": "Sublimación",
@@ -104,7 +104,7 @@ TRADUCCIONES = {
         "pagar_paypal": "Pagar $1.50 con PayPal",
         "pago_exitoso": "✅ ¡Pago de $1.50 USD confirmado! Cambios aplicados guardados.",
         "descargar_hd": "📥 Descarga tu Arte Modificado en Alta Resolución (300 DPI)",
-        "descargar_master": "🚀 Descargar Master PNG (Sin Fondo para DTF/Sublimación)",
+        "descargar_master": "🚀 Descargar Master PNG (Sin Fondo y Sin Residuos para DTF/Sublimación)",
         "fotolitos": "Fotolitos en Alta Definición para Serigrafía",
         "descargar_tinta": "Descargar Fotolito Tinta",
         "procesar_otro": "🔄 Procesar otro diseño ($1.50 USD)",
@@ -122,7 +122,7 @@ TRADUCCIONES = {
         "prompt_ia": "Customer change instructions",
         "fuerza_ia": "Variation strength",
         "usar_upscale": "🔍 AI Upscale & Enhance (Megapixel 4K)",
-        "quitar_fondo_hd": "🪄 Smart HD Background Removal (Enhanced Quality)",
+        "quitar_fondo_hd": "🪄 Clean PNG HD Background Removal (No beard/edge residue)",
         "tecnica": "Printing Technique / Process",
         "dtf": "DTF (Direct to Film)",
         "sublimacion": "Sublimation",
@@ -140,7 +140,7 @@ TRADUCCIONES = {
         "pagar_paypal": "Pay $1.50 with PayPal",
         "pago_exitoso": "✅ $1.50 USD Payment confirmed! Applied changes secured.",
         "descargar_hd": "📥 Download High-Resolution Modified Artwork (300 DPI)",
-        "descargar_master": "🚀 Download Master PNG (Transparent for DTF/Sublimation)",
+        "descargar_master": "🚀 Download Master PNG (Transparent, Residue-Free for DTF/Sublimation)",
         "fotolitos": "High Definition Screen Printing Separations",
         "descargar_tinta": "Download Ink Film",
         "procesar_otro": "🔄 Process another design ($1.50 USD)",
@@ -158,7 +158,7 @@ TRADUCCIONES = {
         "prompt_ia": "Instruções de mudança do cliente",
         "fuerza_ia": "Força de variação",
         "usar_upscale": "🔍 Ampliar Qualidade (Estilo Megapixel 4K)",
-        "quitar_fondo_hd": "🪄 Remover Fundo HD Inteligente (Sem Perda de Qualidade)",
+        "quitar_fondo_hd": "🪄 Remover Fundo HD Limpo em PNG (Sem resíduos na barba)",
         "tecnica": "Técnica de Impressão / Processo",
         "dtf": "DTF (Impressão Direta no Filme)",
         "sublimacion": "Sublimação",
@@ -176,7 +176,7 @@ TRADUCCIONES = {
         "pagar_paypal": "Pagar $1.50 com PayPal",
         "pago_exitoso": "✅ Pagamento confirmado!",
         "descargar_hd": "📥 Baixe sua Arte Modificada em Alta Resolução (300 DPI)",
-        "descargar_master": "🚀 Baixar Master PNG (Fundo Transparente para DTF/Sublimação)",
+        "descargar_master": "🚀 Baixar Master PNG (Fundo Transparente sem resíduos)",
         "fotolitos": "Fotolitos em Alta Definição",
         "descargar_tinta": "Baixar Fotolito Tinta",
         "procesar_otro": "🔄 Processar outro design ($1.50 USD)",
@@ -194,7 +194,7 @@ TRADUCCIONES = {
         "prompt_ia": "Instructions de modification du client",
         "fuerza_ia": "Force de variation",
         "usar_upscale": "🔍 Agrandir Qualité (Style Megapixel 4K)",
-        "quitar_fondo_hd": "🪄 Suppression de Fond HD Intelligente (Sans Perte de Qualité)",
+        "quitar_fondo_hd": "🪄 Suppression de Fond HD Propre en PNG (Sans résidus)",
         "tecnica": "Technique d'impression / Processus",
         "dtf": "DTF",
         "sublimacion": "Sublimation",
@@ -282,15 +282,39 @@ def ampliar_calidad_megapixel(pil_img):
         w, h = pil_img.size
         return pil_img.resize((w * 2, h * 2), Image.Resampling.LANCZOS)
 
-def quitar_fondo_con_mejora_hd(pil_img):
-    """Quita el fondo tipo remove.bg y aumenta automáticamente la calidad/nitidez sin perder resolución"""
-    # 1. Quitar fondo de forma limpia
-    img_sin_fondo = remove(pil_img)
+def quitar_fondo_hd_limpio(pil_img):
+    """Quita el fondo mediante IA, limpia residuos en bordes/barba (fringe/halos) y exporta en PNG perfecto de alta calidad"""
+    # 1. Extracción base de sujeto transparente (rembg)
+    img_rembg = remove(pil_img)
     
-    # 2. Upscale / Mejora automática de nitidez y resolución para evitar pérdida de calidad
+    # 2. Limpieza avanzada de canales alpha para eliminar residuos de fondo oscuro/claro (remover halos en cabello/barba)
+    if img_rembg.mode == "RGBA":
+        r, g, b, alpha = img_rembg.split()
+        
+        # Procesar la máscara alfa con OpenCV para eliminar artefactos y suavizar bordes de forma limpia
+        alpha_np = np.array(alpha)
+        
+        # Umbralización para eliminar residuos semitransparentes no deseados (como los de la barba)
+        _, alpha_thresh = cv2.threshold(alpha_np, 40, 255, cv2.THRESH_BINARY)
+        
+        # Limpieza morfológica para sellar pequeños huecos y limpiar rebordes sueltos
+        kernel = np.ones((3, 3), np.uint8)
+        alpha_clean = cv2.morphologyEx(alpha_thresh, cv2.MORPH_CLOSE, kernel)
+        alpha_clean = cv2.morphologyEx(alpha_clean, cv2.MORPH_OPEN, kernel)
+        
+        # Suavizado de bordes (antialiasing natural)
+        alpha_blur = cv2.GaussianBlur(alpha_clean, (3, 3), 0)
+        alpha_final = Image.fromarray(alpha_blur)
+        
+        # Reconstruir imagen PNG limpia
+        img_limpia = Image.merge("RGBA", (r, g, b, alpha_final))
+    else:
+        img_limpia = img_rembg.convert("RGBA")
+
+    # 3. Mejora de calidad/nitidez posterior para evitar pérdida de resolución
     if STABILITY_API_KEY != "sk-TU_CLAVE_STABILITY_AI" and STABILITY_API_KEY:
         buffer = io.BytesIO()
-        img_sin_fondo.save(buffer, format="PNG")
+        img_limpia.save(buffer, format="PNG")
         buffer.seek(0)
         try:
             response = requests.post(
@@ -301,18 +325,23 @@ def quitar_fondo_con_mejora_hd(pil_img):
             if response.status_code == 200:
                 data = response.json()
                 image_data = base64.b64decode(data["artifacts"][0]["base64"])
-                return Image.open(io.BytesIO(image_data))
+                return Image.open(io.BytesIO(image_data)).convert("RGBA")
         except Exception:
             pass
             
-    # Fallback local de alta nitidez (LANCZOS 2x) si no hay API externa configurada
-    w, h = img_sin_fondo.size
-    return img_sin_fondo.resize((w * 2, h * 2), Image.Resampling.LANCZOS)
+    # Fallback local de alta nitidez con Lanczos
+    w, h = img_limpia.size
+    return img_limpia.resize((w * 2, h * 2), Image.Resampling.LANCZOS)
 
 def generar_vista_previa_protegida_con_cambios(pil_img, lista_cambios):
     preview = pil_img.copy()
-    if preview.mode != "RGB":
+    if preview.mode == "RGBA":
+        background = Image.new("RGB", preview.size, (255, 255, 255))
+        background.paste(preview, mask=preview.split()[3])
+        preview = background
+    elif preview.mode != "RGB":
         preview = preview.convert("RGB")
+        
     preview.thumbnail((500, 500))
     draw = ImageDraw.Draw(preview)
     w, h = preview.size
@@ -486,7 +515,7 @@ if usar_upscale:
 
 quitar_fondo_activo = st.sidebar.checkbox(txt["quitar_fondo_hd"], value=False)
 if quitar_fondo_activo:
-    cambios_solicitados.append("Eliminación de fondo HD con mejora automática de nitidez")
+    cambios_solicitados.append("Eliminación de fondo HD limpia en PNG (sin residuos en barba ni bordes)")
 
 # ==========================================
 # 6. CARGA Y VISUALIZADOR DE CAMBIOS
@@ -498,8 +527,8 @@ if uploaded_file is not None:
     
     # APLICAR MODIFICACIONES
     if quitar_fondo_activo:
-        with st.spinner("Quitando fondo y mejorando calidad automáticamente..."):
-            imagen_original = quitar_fondo_con_mejora_hd(imagen_original)
+        with st.spinner("Quitando fondo, limpiando residuos de barba/bordes y mejorando calidad HD..."):
+            imagen_original = quitar_fondo_hd_limpio(imagen_original)
 
     if usar_upscale:
         with st.spinner("Aplicando ampliación de calidad Megapixel..."):
