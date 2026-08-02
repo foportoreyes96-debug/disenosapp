@@ -125,7 +125,7 @@ if archivo_subido is not None:
         with col_prev1:
             st.markdown("<div class='card-container'>", unsafe_allow_html=True)
             st.subheader("🖼️ Imagen Preparada (HD)")
-            st.image(imagen_redimensionada, width="stretch")
+            st.image(imagen_redimensionada, use_container_width=True)
             st.markdown(f"<p style='color: #8B949E; font-size: 0.85rem;'>Tamaño físico: {ancho_cm} x {alto_cm} cm | Resolución: {nuevo_w} x {nuevo_h} px (300 PPI)</p>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
@@ -184,7 +184,7 @@ if archivo_subido is not None:
         with col_sim1:
             st.markdown("<div class='card-container' style='text-align: center;'>", unsafe_allow_html=True)
             st.subheader("Resultado Tramado")
-            st.image(simulacion_img, width="stretch")
+            st.image(simulacion_img, use_container_width=True)
             st.markdown("<p style='color: #8B949E; font-size: 0.85rem;'>Simulación de puntos CMYK combinados</p>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
         with col_sim2:
@@ -209,7 +209,7 @@ if archivo_subido is not None:
                 st.markdown(f"<h4 style='color: {colores_badge.get(nombre, '#fff')}; margin-bottom: 5px;'>● {nombre}</h4>", unsafe_allow_html=True)
                 
                 matriz_img = fotolitos[nombre]
-                st.image(matriz_img, width="stretch", clamp=True)
+                st.image(matriz_img, use_container_width=True, clamp=True)
                 
                 buf_img = io.BytesIO()
                 img_to_dl = Image.fromarray(matriz_img)
