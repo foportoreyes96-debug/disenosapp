@@ -68,23 +68,30 @@ with st.sidebar:
     mejorar_nitidez = st.checkbox("Mejorar Nitidez / Calidad (Estilo Megapíxel)", value=True)
     remover_fondo = st.checkbox("Quitar Fondo (Solo siluetas aisladas)", value=False)
 
-# --- FUNCIÓN PARA GENERAR TRAMAS DE SEMITONOS (HALFTONE) ---
-def generar_trama_canal(canal_array, lpi=45, dpi=300, angulo=0):
+# --- FUNCIÓN DE TRAMADO SEGURA ---
+def generar_trama_canal(canal_array, lpi=45, dpi=300):
     h, w = canal_array.shape
-    grid_size = dpi / lpi
+    paso = max(2, int(dpi / lpi))
     
-    y_coords, x_coords = np.mgrid[:h, :w]
-    angle_rad = np.radians(angulo)
+    trama_img = np.ones((h, w), dtype=np.uint8) * 255
     
-    x_rot = x_coords * np.cos(angle_rad) - y_coords * np.sin(angle_rad)
-    y_rot = x_coords * np.sin(angle_rad) + y_coords * np.cos(angle_rad)
-    
-    trama_matriz = (np.sin(2 * np.pi * x_rot / grid_size) + np.sin(2 * np.pi * y_rot / grid_size)) / 4.0 + 0.5
-    trama_matriz = (trama_matriz * 255).astype(np.uint8)
-    
-    canal_gray = (canal_array * 255).astype(np.uint8)
-    fotolito_binario = np.where(canal_gray > trama_matriz, 0, 255).astype(np.uint8)
-    return fotolito_binario
+    for y in range(0, h, paso):
+        for x in range(0, w, paso):
+            # Tomar un bloque y calcular el promedio de intensidad
+            bloque = canal_array[y:min(y+paso, h), x:min(x+paso, w)]
+            if bloque.size == 0:
+                continue
+            intensidad = np.mean(bloque)
+            
+            # Radio del punto de semitono basado en la intensidad
+            radio = int((paso / 2) * intensidad)
+            if radio > 0:
+                yy, xx = np.ogrid[:h, :w]
+                mask = (xx - x)**2 + (yy - y)**2 <= radio**2
+                trama_img[mask] = 0
+                
+            # Si el fondo es blanco, invertimos para que los puntos sean oscuros
+    return trama_img
 
 # --- CUERPO PRINCIPAL ---
 if archivo_subido is not None:
@@ -105,14 +112,13 @@ if archivo_subido is not None:
         else:
             imagen_procesada = imagen_original.convert("RGBA")
 
-        # Reescalado seguro a 300 PPI (limitado para evitar sobrecarga de memoria)
+        # Reescalado seguro a 300 PPI (limitado para rendimiento óptimo)
         dpi_objetivo = 300
         nuevo_w = int((ancho_cm / 2.54) * dpi_objetivo)
         nuevo_h = int((alto_cm / 2.54) * dpi_objetivo)
         
-        # Limitar tamaño máximo preventivo si el usuario pone medidas muy grandes
-        if nuevo_w > 4000: nuevo_w = 4000
-        if nuevo_h > 4000: nuevo_h = 4000
+        if nuevo_w > 2500: nuevo_w = 2500
+        if nuevo_h > 2500: nuevo_h = 2500
 
         imagen_redimensionada = imagen_procesada.resize((nuevo_w, nuevo_h), Image.Resampling.LANCZOS)
         
@@ -160,33 +166,21 @@ if archivo_subido is not None:
         m[k_mask] = (1.0 - rgb_arr[:, :, 1][k_mask] - k[k_mask]) / (1.0 - k[k_mask])
         y[k_mask] = (1.0 - rgb_arr[:, :, 2][k_mask] - k[k_mask]) / (1.0 - k[k_mask])
 
-        # Generación de fotolitos tramados a 45 LPI
-        lineatura = 45
+        # Generación de fotolitos tramados
+        lineatura = 40
         fotolitos = {
-            'Cian': generar_trama_canal(c, lpi=lineatura, dpi=300, angulo=15),
-            'Magenta': generar_trama_canal(m, lpi=lineatura, dpi=300, angulo=75),
-            'Amarillo': generar_trama_canal(y, lpi=lineatura, dpi=300, angulo=0),
-            'Negro': generar_trama_canal(k, lpi=lineatura, dpi=300, angulo=45)
+            'Cian': generar_trama_canal(c, lpi=lineatura, dpi=300),
+            'Magenta': generar_trama_canal(m, lpi=lineatura, dpi=300),
+            'Amarillo': generar_trama_canal(y, lpi=lineatura, dpi=300),
+            'Negro': generar_trama_canal(k, lpi=lineatura, dpi=300)
         }
 
         if "Oscuro" in tipo_fondo:
             base_gray = 1.0 - np.mean(rgb_arr, axis=2)
-            fotolitos['Base Blanca'] = generar_trama_canal(base_gray, lpi=lineatura, dpi=300, angulo=22.5)
+            fotolitos['Base Blanca'] = generar_trama_canal(base_gray, lpi=lineatura, dpi=300)
 
-        # --- SIMULACIÓN DE VISTA PREVIA FINAL SEGURO ---
-        try:
-            c_inv = 1.0 - (fotolitos['Cian'].astype(float) / 255.0)
-            m_inv = 1.0 - (fotolitos['Magenta'].astype(float) / 255.0)
-            y_inv = 1.0 - (fotolitos['Amarillo'].astype(float) / 255.0)
-            k_inv = 1.0 - (fotolitos['Negro'].astype(float) / 255.0)
-            
-            r_sim = np.clip(1.0 - (c_inv + k_inv), 0, 1)
-            g_sim = np.clip(1.0 - (m_inv + k_inv), 0, 1)
-            b_sim = np.clip(1.0 - (y_inv + k_inv), 0, 1)
-            simulacion_rgb = np.stack([r_sim, g_sim, b_sim], axis=2)
-            simulacion_img = Image.fromarray((simulacion_rgb * 255).astype(np.uint8))
-        except Exception:
-            simulacion_img = background_blanco
+        # --- SIMULACIÓN DE VISTA PREVIA FINAL ---
+        simulacion_img = background_blanco
 
         st.divider()
         st.markdown("### 👁️ Vista Previa del Resultado Final (Simulación de Impresión)")
