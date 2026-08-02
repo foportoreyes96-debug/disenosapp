@@ -65,10 +65,10 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("#### 🔍 Optimización HD")
-    mejorar_nitidez = st.checkbox("Mejorar Nitidez / Calidad (Estilo Megapíxel)", value=True)
-    remover_fondo = st.checkbox("Quitar Fondo (Solo siluetas aisladas)", value=False)
+    mejorar_nitidez = st.checkbox("Mejorar Nitidez / Calidad", value=True)
+    remover_fondo = st.checkbox("Quitar Fondo", value=False)
 
-# --- FUNCIÓN DE TRAMADO SEGURA ---
+# --- FUNCIÓN DE TRAMADO ---
 def generar_trama_canal(canal_array, lpi=45, dpi=300):
     h, w = canal_array.shape
     paso = max(2, int(dpi / lpi))
@@ -106,7 +106,6 @@ if archivo_subido is not None:
         else:
             imagen_procesada = imagen_original.convert("RGBA")
 
-        # Reescalado seguro a 300 PPI
         dpi_objetivo = 300
         nuevo_w = int((ancho_cm / 2.54) * dpi_objetivo)
         nuevo_h = int((alto_cm / 2.54) * dpi_objetivo)
@@ -134,13 +133,8 @@ if archivo_subido is not None:
             st.subheader("⚙️ Estado de Preimpresión")
             st.success("✔ Archivo procesado correctamente a 300 PPI.")
             st.info(f"Modo seleccionado: **{tipo_fondo}**")
-            st.markdown("Ángulos de trama aplicados:")
-            st.markdown("- **Cian:** 15° | **Magenta:** 75° | **Amarillo:** 0° | **Negro:** 45°")
-            if "Oscuro" in tipo_fondo:
-                st.markdown("- **Base Blanca:** 22.5°")
             st.markdown("</div>", unsafe_allow_html=True)
 
-        # Conversión a RGB para separación CMYK
         background_blanco = Image.new("RGB", imagen_redimensionada.size, (255, 255, 255))
         if imagen_redimensionada.mode == "RGBA":
             background_blanco.paste(imagen_redimensionada, mask=imagen_redimensionada.split()[3])
@@ -149,7 +143,6 @@ if archivo_subido is not None:
             
         rgb_arr = np.array(background_blanco).astype(float) / 255.0
 
-        # Fórmulas CMYK
         k = 1.0 - np.max(rgb_arr, axis=2)
         k_mask = k < 1.0 
         c = np.zeros_like(k)
@@ -160,7 +153,6 @@ if archivo_subido is not None:
         m[k_mask] = (1.0 - rgb_arr[:, :, 1][k_mask] - k[k_mask]) / (1.0 - k[k_mask])
         y[k_mask] = (1.0 - rgb_arr[:, :, 2][k_mask] - k[k_mask]) / (1.0 - k[k_mask])
 
-        # Generación de fotolitos tramados
         lineatura = 40
         fotolitos = {
             'Cian': generar_trama_canal(c, lpi=lineatura, dpi=300),
@@ -173,31 +165,8 @@ if archivo_subido is not None:
             base_gray = 1.0 - np.mean(rgb_arr, axis=2)
             fotolitos['Base Blanca'] = generar_trama_canal(base_gray, lpi=lineatura, dpi=300)
 
-        # --- SIMULACIÓN DE VISTA PREVIA FINAL ---
-        simulacion_img = background_blanco
-
         st.divider()
-        st.markdown("### 👁️ Vista Previa del Resultado Final (Simulación de Impresión)")
-        st.markdown("Así es como el cliente puede visualizar el resultado combinado de las tramas antes de llevarlas a producción:")
-        
-        col_sim1, col_sim2 = st.columns([1, 2], gap="large")
-        with col_sim1:
-            st.markdown("<div class='card-container' style='text-align: center;'>", unsafe_allow_html=True)
-            st.subheader("Resultado Tramado")
-            st.image(simulacion_img, use_container_width=True)
-            st.markdown("<p style='color: #8B949E; font-size: 0.85rem;'>Simulación de puntos CMYK combinados</p>", unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-        with col_sim2:
-            st.markdown("<div class='card-container'>", unsafe_allow_html=True)
-            st.subheader("💡 Control de Calidad para el Cliente")
-            st.markdown("Esta vista combina matemáticamente los canales tramados para asegurar que:")
-            st.markdown("- No existan zonas con exceso de ganancia de punto.")
-            st.markdown("- Los detalles finos y textos negros mantengan su nitidez.")
-            st.markdown("- La retícula de puntos de la cuatricomía sea totalmente armónica.")
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        st.divider()
-        st.markdown("### 📥 Fotolitos Separados y Tramados (Listos para Impresión)")
+        st.markdown("### 📥 Fotolitos Separados y Tramados")
         
         canales_a_mostrar = list(fotolitos.keys())
         cols = st.columns(len(canales_a_mostrar), gap="medium")
@@ -216,21 +185,11 @@ if archivo_subido is not None:
                 img_to_dl.save(buf_img, format="PNG", dpi=(300, 300))
                 
                 st.download_button(
-                    label=f"Descargar {nombre} (PNG)",
+                    label=f"Descargar {nombre}",
                     data=buf_img.getvalue(),
                     file_name=f"fotolito_{nombre.lower().replace(' ', '_')}.png",
                     mime="image/png",
                     key=f"dl_{nombre}"
-                )
-                
-                buf_pdf = io.BytesIO()
-                img_to_dl.save(buf_pdf, format="PDF", resolution=300)
-                st.download_button(
-                    label=f"Descargar {nombre} (PDF)",
-                    data=buf_pdf.getvalue(),
-                    file_name=f"fotolito_{nombre.lower().replace(' ', '_')}.pdf",
-                    mime="application/pdf",
-                    key=f"dl_pdf_{nombre}"
                 )
                 st.markdown("</div>", unsafe_allow_html=True)
     except Exception as e:
@@ -239,6 +198,5 @@ else:
     st.markdown("""
         <div style='text-align: center; padding: 50px; background-color: #161B22; border-radius: 12px; border: 1px dashed #30363D;'>
             <h3 style='color: #8B949E;'>Sube una imagen para comenzar el proceso de preimpresión</h3>
-            <p style='color: #484F58;'>Usa el panel izquierdo para cargar tu diseño, definir las medidas en cm y ver la simulación final.</p>
         </div>
     """, unsafe_allow_html=True)
