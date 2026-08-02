@@ -88,7 +88,7 @@ TRADUCCIONES = {
         "usar_upscale": "🔍 Ampliar Calidad (Estilo Megapixel 4K)",
         "usar_inpainting": "🎨 Modificar/Agregar Contenido Específico",
         "prompt_inpainting": "Qué elemento agregar o cambiar en el diseño",
-        "tecnica": "Técnica de Impresión / Proceso",
+        "tecnica": "Técnica de Impresión / Processo",
         "dtf": "DTF (Impresión Directa a Film)",
         "sublimacion": "Sublimación",
         "serigrafia_planos": "Serigrafía (Colores Planos)",
@@ -232,11 +232,12 @@ st.title(txt["titulo"])
 st.markdown(txt["subtitulo"])
 
 # ==========================================
-# 4. FUNCIONES DE PROCESAMIENTO E IA
+# 4. FUNCIONES DE PROCESAMIENTO E IA REALES
 # ==========================================
-def recrear_imagen_con_ia(pil_img, prompt, strength=0.35):
-    """Duplica y regenera la imagen aplicando los cambios exactos pedidos por el cliente"""
-    if STABILITY_API_KEY == "sk-TU_CLAVE_STABILITY_AI":
+def modificar_contenido_ia(pil_img, prompt_mod):
+    """Ejecuta la modificación o reemplazo de texto/elementos mediante la API de Stability AI"""
+    if STABILITY_API_KEY == "sk-TU_CLAVE_STABILITY_AI" or not STABILITY_API_KEY:
+        st.warning("⚠️ Debes configurar tu `STABILITY_API_KEY` en los Secrets de Streamlit para que la IA procese los cambios de texto o elementos.")
         return pil_img
 
     buffer = io.BytesIO()
@@ -244,12 +245,46 @@ def recrear_imagen_con_ia(pil_img, prompt, strength=0.35):
     buffer.seek(0)
 
     try:
+        # Usamos Text-to-Image / Image-to-Image guiado por texto para transformar el diseño según la petición del cliente
         response = requests.post(
             "https://api.stability.ai/v1/generation/stable-diffusion-v1-6/image-to-image",
             headers={
                 "Authorization": f"Bearer {STABILITY_API_KEY}",
                 "Accept": "application/json"
             },
+            files={"init_image": buffer},
+            data={
+                "init_image_mode": "IMAGE_STRENGTH",
+                "image_strength": 0.60, # Permitir que la IA modifique áreas del diseño de acuerdo al texto pedido
+                "text_prompts[0][text]": prompt_mod,
+                "text_prompts[0][weight]": 1.2,
+                "cfg_scale": 8,
+                "samples": 1,
+                "steps": 35,
+            }
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            image_data = base64.b64decode(data["artifacts"][0]["base64"])
+            return Image.open(io.BytesIO(image_data))
+        else:
+            st.error(f"Error en la API de IA: {response.text}")
+            return pil_img
+    except Exception as e:
+        st.error(f"Excepción al conectar con la IA: {e}")
+        return pil_img
+
+def recrear_imagen_con_ia(pil_img, prompt, strength=0.35):
+    if STABILITY_API_KEY == "sk-TU_CLAVE_STABILITY_AI" or not STABILITY_API_KEY:
+        return pil_img
+    buffer = io.BytesIO()
+    pil_img.save(buffer, format="PNG")
+    buffer.seek(0)
+    try:
+        response = requests.post(
+            "https://api.stability.ai/v1/generation/stable-diffusion-v1-6/image-to-image",
+            headers={"Authorization": f"Bearer {STABILITY_API_KEY}", "Accept": "application/json"},
             files={"init_image": buffer},
             data={
                 "init_image_mode": "IMAGE_STRENGTH",
@@ -261,69 +296,51 @@ def recrear_imagen_con_ia(pil_img, prompt, strength=0.35):
                 "steps": 30,
             }
         )
-
         if response.status_code == 200:
             data = response.json()
             image_data = base64.b64decode(data["artifacts"][0]["base64"])
             return Image.open(io.BytesIO(image_data))
-        else:
-            return pil_img
+        return pil_img
     except Exception:
         return pil_img
 
 def ampliar_calidad_megapixel(pil_img):
-    """Amplía calidad y nitidez"""
-    if STABILITY_API_KEY == "sk-TU_CLAVE_STABILITY_AI":
+    if STABILITY_API_KEY == "sk-TU_CLAVE_STABILITY_AI" or not STABILITY_API_KEY:
         w, h = pil_img.size
         return pil_img.resize((w * 2, h * 2), Image.Resampling.LANCZOS)
-    
     buffer = io.BytesIO()
     pil_img.save(buffer, format="PNG")
     buffer.seek(0)
-
     try:
         response = requests.post(
             "https://api.stability.ai/v1/generation/esrgan-v1-x2plus/image-to-image/upscale",
-            headers={
-                "Authorization": f"Bearer {STABILITY_API_KEY}",
-                "Accept": "application/json"
-            },
+            headers={"Authorization": f"Bearer {STABILITY_API_KEY}", "Accept": "application/json"},
             files={"image": buffer}
         )
         if response.status_code == 200:
             data = response.json()
             image_data = base64.b64decode(data["artifacts"][0]["base64"])
             return Image.open(io.BytesIO(image_data))
-        else:
-            w, h = pil_img.size
-            return pil_img.resize((w * 2, h * 2), Image.Resampling.LANCZOS)
+        w, h = pil_img.size
+        return pil_img.resize((w * 2, h * 2), Image.Resampling.LANCZOS)
     except Exception:
         w, h = pil_img.size
         return pil_img.resize((w * 2, h * 2), Image.Resampling.LANCZOS)
 
-def modificar_contenido_ia(pil_img, prompt_mod):
-    """Añade o modifica contenido específico pedido por el cliente"""
-    return recrear_imagen_con_ia(pil_img, prompt_mod, strength=0.25)
-
 def generar_vista_previa_protegida_con_cambios(pil_img, lista_cambios):
-    """Genera la vista previa interactiva con marca de agua y muestra visual de los cambios aplicados"""
     preview = pil_img.copy()
     preview.thumbnail((500, 500))
     draw = ImageDraw.Draw(preview)
     w, h = preview.size
     
-    # Marca de agua robusta de protección
     draw.line((0, 0, w, h), fill=(255, 0, 0, 140), width=5)
     draw.line((0, h, w, 0), fill=(255, 0, 0, 140), width=5)
     
-    # Sello visible para el cliente
     draw.rectangle([10, 10, w - 10, 45], fill=(0, 0, 0, 160))
     draw.text((20, 18), "DISEÑOSAPP - VISTA CON CAMBIOS (PAGO PENDIENTE)", fill=(255, 255, 255))
-    
     return preview
 
 def procesar_alta_calidad(pil_img, target_w, target_h):
-    """Remueve fondo y escala a 300 DPI reales"""
     img_sin_fondo = remove(pil_img)
     return img_sin_fondo.resize((target_w, target_h), Image.Resampling.LANCZOS)
 
@@ -333,15 +350,12 @@ def separar_colores_kmeans(pil_image, num_tintas):
     alpha = img_np[:, :, 3]
     mask_pixels = alpha > 100
     pixels_validos = rgb[mask_pixels]
-
     pixels_lab = cv2.cvtColor(pixels_validos.reshape(-1, 1, 3), cv2.COLOR_RGB2Lab).reshape(-1, 3)
     kmeans = KMeans(n_clusters=num_tintas, random_state=42, n_init=5)
     labels = kmeans.fit_predict(pixels_lab)
-
     h, w, _ = rgb.shape
     full_labels = np.zeros((h, w), dtype=int) - 1
     full_labels[mask_pixels] = labels
-
     capas = []
     for i in range(num_tintas):
         mascara = np.zeros((h, w), dtype=np.uint8)
@@ -356,15 +370,12 @@ def generar_fotolitos_cuatricomia_cmyk(pil_image_hd, lpi=55, dpi=300):
     c = np.zeros_like(k)
     m = np.zeros_like(k)
     y = np.zeros_like(k)
-    
     c[k_mask] = (1.0 - rgb[:, :, 0][k_mask] - k[k_mask]) / (1.0 - k[k_mask])
     m[k_mask] = (1.0 - rgb[:, :, 1][k_mask] - k[k_mask]) / (1.0 - k[k_mask])
     y[k_mask] = (1.0 - rgb[:, :, 2][k_mask] - k[k_mask]) / (1.0 - k[k_mask])
-
     canales = {'Cian': c, 'Magenta': m, 'Amarillo': y, 'Negro': k}
     angulos = {'Cian': 15, 'Magenta': 75, 'Amarillo': 0, 'Negro': 45}
     fotolitos_cmyk = {}
-
     for nombre, canal in canales.items():
         canal_compensado = np.power(canal, 1.4) 
         canal_gray = (canal_compensado * 255).astype(np.uint8)
@@ -378,7 +389,6 @@ def generar_fotolitos_cuatricomia_cmyk(pil_image_hd, lpi=55, dpi=300):
         trama_matriz = (trama_matriz * 255).astype(np.uint8)
         fotolito_binario = np.where(canal_gray > trama_matriz, 0, 255).astype(np.uint8)
         fotolitos_cmyk[nombre] = fotolito_binario
-
     return fotolitos_cmyk
 
 # Pasarela PayPal
@@ -477,39 +487,38 @@ if usar_upscale:
 usar_inpainting = st.sidebar.checkbox(txt["usar_inpainting"], value=False)
 prompt_inpainting = ""
 if usar_inpainting:
-    prompt_inpainting = st.sidebar.text_input(txt["prompt_inpainting"], "add clean details")
+    prompt_inpainting = st.sidebar.text_input(txt["prompt_inpainting"], "quitar texto y poner un logo de garantía")
     if prompt_inpainting:
         cambios_solicitados.append(f"Modificación específica: {prompt_inpainting}")
 
 # ==========================================
-# 6. CARGA Y VISUALIZADOR DE CAMBIOS CON MARCA DE AGUA
+# 6. CARGA Y VISUALIZADOR DE CAMBIOS
 # ==========================================
 uploaded_file = st.file_uploader(txt["subir_imagen"], type=["png", "jpg", "jpeg", "webp"])
 
 if uploaded_file is not None:
     imagen_original = Image.open(uploaded_file).convert("RGB")
     
-    # Aplicar modificaciones en vivo según lo que la gente pidió
+    # APLICAR MODIFICACIONES REALES MEDIANTE IA
     if usar_upscale:
         with st.spinner("Aplicando ampliación de calidad Megapixel..."):
             imagen_original = ampliar_calidad_megapixel(imagen_original)
 
     if usar_inpainting and prompt_inpainting:
-        with st.spinner("Agregando/Modificando el contenido solicitado..."):
+        with st.spinner("La IA está modificando el contenido y aplicando los cambios solicitados..."):
             imagen_original = modificar_contenido_ia(imagen_original, prompt_inpainting)
 
     if usar_ia and prompt_ia:
-        with st.spinner("Recreando diseño según instrucciones de la gente..."):
+        with st.spinner("Recreando diseño según instrucciones..."):
             imagen_original = recrear_imagen_con_ia(imagen_original, prompt_ia, fuerza_ia)
 
     col1, col2 = st.columns(2)
     
     with col1:
         st.subheader(txt["muestra_marca"])
-        # Muestra en vivo la vista previa protegida con los cambios ya incorporados
         preview_img = generar_vista_previa_protegida_con_cambios(imagen_original, cambios_solicitados)
         st.image(preview_img, use_container_width=True)
-        st.info("💡 *Este diseño muestra los cambios exactos que pediste para tu total satisfacción antes de procesar el pago.*")
+        st.info("💡 *Este diseño muestra los cambios generados por la IA en tiempo real para tu aprobación.*")
 
     with col2:
         st.subheader(txt["resumen"])
@@ -517,13 +526,12 @@ if uploaded_file is not None:
         st.write(f"• **{txt['calidad_salida']}:** {px_ancho} x {px_alto} px (300 DPI)")
         st.write(f"• **Proceso seleccionado:** {tecnica}")
         
-        # Historial visible de lo que la gente pidió para garantizar satisfacción
         if cambios_solicitados:
             st.markdown("📋 **Cambios y peticiones aplicadas en esta versión:**")
             for cambio in cambios_solicitados:
                 st.markdown(f'<div class="cambio-badge">✔️ {cambio}</div>', unsafe_allow_html=True)
         else:
-            st.info("ℹ️ No se seleccionaron cambios adicionales. Se procesará el diseño base ajustado a medida.")
+            st.info("ℹ️ No se seleccionaron cambios adicionales.")
 
         st.divider()
         st.metric(label=txt["precio_total"], value="$1.50 USD")
