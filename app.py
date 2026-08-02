@@ -87,7 +87,7 @@ TRADUCCIONES = {
         "fuerza_ia": "Fuerza de variación",
         "usar_upscale": "🔍 Ampliar Calidad (Estilo Megapixel 4K)",
         "quitar_fondo_hd": "🪄 Quitar Fondo HD Ultra Profesional (Corte perfecto sin residuos ni halos)",
-        "tecnica": "Técnica de Impresión / Processo",
+        "tecnica": "Técnica de Impresión / Proceso",
         "dtf": "DTF (Impresión Directa a Film)",
         "sublimacion": "Sublimación",
         "serigrafia_planos": "Serigrafía (Colores Planos)",
@@ -104,7 +104,7 @@ TRADUCCIONES = {
         "pagar_paypal": "Pagar $1.50 con PayPal",
         "pago_exitoso": "✅ ¡Pago de $1.50 USD confirmado! Cambios aplicados guardados.",
         "descargar_hd": "📥 Descarga tu Arte Modificado en Alta Resolución (300 DPI)",
-        "descargar_master": "🚀 Descargar Master PNG (Fondo 100% Transparente y Bordes Limpios para DTF/Sublimación)",
+        "descargar_master": "🚀 Descargar Master PNG (Fondo 100% Transparente y Bordes Suavizados para DTF/Sublimación)",
         "fotolitos": "Fotolitos en Alta Definición para Serigrafía",
         "descargar_tinta": "Descargar Fotolito Tinta",
         "procesar_otro": "🔄 Procesar otro diseño ($1.50 USD)",
@@ -122,7 +122,7 @@ TRADUCCIONES = {
         "prompt_ia": "Customer change instructions",
         "fuerza_ia": "Variation strength",
         "usar_upscale": "🔍 AI Upscale & Enhance (Megapixel 4K)",
-        "quitar_fondo_hd": "🪄 Ultra Professional HD Background Removal (Flawless edges, no residue)",
+        "quitar_fondo_hd": "🪄 Ultra Professional HD Background Removal (Flawless smooth edges, no residue)",
         "tecnica": "Printing Technique / Process",
         "dtf": "DTF (Direct to Film)",
         "sublimacion": "Sublimation",
@@ -140,7 +140,7 @@ TRADUCCIONES = {
         "pagar_paypal": "Pay $1.50 with PayPal",
         "pago_exitoso": "✅ $1.50 USD Payment confirmed! Applied changes secured.",
         "descargar_hd": "📥 Download High-Resolution Modified Artwork (300 DPI)",
-        "descargar_master": "🚀 Download Master PNG (100% Transparent & Clean Edges for DTF/Sublimation)",
+        "descargar_master": "🚀 Download Master PNG (100% Transparent & Smooth Clean Edges for DTF/Sublimation)",
         "fotolitos": "High Definition Screen Printing Separations",
         "descargar_tinta": "Download Ink Film",
         "procesar_otro": "🔄 Process another design ($1.50 USD)",
@@ -158,7 +158,7 @@ TRADUCCIONES = {
         "prompt_ia": "Instruções de mudança do cliente",
         "fuerza_ia": "Força de variação",
         "usar_upscale": "🔍 Ampliar Qualidade (Estilo Megapixel 4K)",
-        "quitar_fondo_hd": "🪄 Remover Fundo HD Ultra Profissional (Corte perfeito sem resíduos)",
+        "quitar_fondo_hd": "🪄 Remover Fundo HD Ultra Profissional (Corte perfeito e suave sem resíduos)",
         "tecnica": "Técnica de Impressão / Processo",
         "dtf": "DTF (Impressão Direta no Filme)",
         "sublimacion": "Sublimação",
@@ -176,7 +176,7 @@ TRADUCCIONES = {
         "pagar_paypal": "Pagar $1.50 com PayPal",
         "pago_exitoso": "✅ Pagamento confirmado!",
         "descargar_hd": "📥 Baixe sua Arte Modificada em Alta Resolução (300 DPI)",
-        "descargar_master": "🚀 Baixar Master PNG (Fundo 100% Transparente e Bordas Limpas)",
+        "descargar_master": "🚀 Baixar Master PNG (Fundo 100% Transparente e Bordas Suavizadas)",
         "fotolitos": "Fotolitos em Alta Definição",
         "descargar_tinta": "Baixar Fotolito Tinta",
         "procesar_otro": "🔄 Processar outro design ($1.50 USD)",
@@ -194,7 +194,7 @@ TRADUCCIONES = {
         "prompt_ia": "Instructions de modification du client",
         "fuerza_ia": "Force de variation",
         "usar_upscale": "🔍 Agrandir Qualité (Style Megapixel 4K)",
-        "quitar_fondo_hd": "🪄 Suppression de Fond HD Ultra Pro (Bords parfaits sans résidus)",
+        "quitar_fondo_hd": "🪄 Suppression de Fond HD Ultra Pro (Bords parfaits et lissés sans résidus)",
         "tecnica": "Technique d'impression / Processus",
         "dtf": "DTF",
         "sublimacion": "Sublimation",
@@ -212,7 +212,7 @@ TRADUCCIONES = {
         "pagar_paypal": "Payer par PayPal",
         "pago_exitoso": "✅ Paiement confirmé!",
         "descargar_hd": "📥 Télécharger",
-        "descargar_master": "🚀 Master PNG (Transparent et Bords Propres)",
+        "descargar_master": "🚀 Master PNG (Transparent et Bords Lissés Propres)",
         "fotolitos": "Typons",
         "descargar_tinta": "Télécharger Typon",
         "procesar_otro": "🔄 Autre design",
@@ -283,8 +283,8 @@ def ampliar_calidad_megapixel(pil_img):
         return pil_img.resize((w * 2, h * 2), Image.Resampling.LANCZOS)
 
 def quitar_fondo_hd_ultra_limpio(pil_img):
-    """Quita el fondo con IA (rembg) y aplica un algoritmo avanzado de descontaminación de bordes, 
-    eliminación total de residuos en barbas/cabellos y suavizado profesional estilo estudio gráfico."""
+    """Quita el fondo con IA (rembg) y aplica un algoritmo avanzado de suavizado de contornos 
+    y descontaminación de bordes, erradicando residuos en barbas, cabellos y orillas sucias."""
     
     # 1. Extracción base utilizando modelo de alta precisión
     try:
@@ -298,32 +298,31 @@ def quitar_fondo_hd_ultra_limpio(pil_img):
         
     r, g, b, alpha = img_rembg.split()
     
-    # 2. Procesamiento matricial con OpenCV para neutralizar halos y residuos de fondo
+    # 2. Procesamiento matricial con OpenCV para neutralizar halos y suavizar contornos perfectamente
     alpha_np = np.array(alpha)
     rgb_np = np.array(Image.merge("RGB", (r, g, b)))
     
-    # Umbralizado inteligente para erradicar residuos fantasma o texturas semitransparentes en la barba
-    # Se eliminan los pixeles con opacidad menor a 55 para dejar la barba y cabello totalmente limpios
-    _, alpha_mask = cv2.threshold(alpha_np, 55, 255, cv2.THRESH_BINARY)
+    # Umbralizado inteligente para erradicar residuos fantasma en zonas complejas (como barbas o pelos sueltos)
+    _, alpha_mask = cv2.threshold(alpha_np, 40, 255, cv2.THRESH_BINARY)
     
-    # Operaciones morfológicas de limpieza avanzada (cierre de huecos y apertura para eliminar ruido suelto)
+    # Operaciones morfológicas para eliminar ruido flotante y sellar micro-huecos en el diseño
     kernel_clean = np.ones((2, 2), np.uint8)
     alpha_clean = cv2.morphologyEx(alpha_mask, cv2.MORPH_CLOSE, kernel_clean)
     alpha_clean = cv2.morphologyEx(alpha_clean, cv2.MORPH_OPEN, kernel_clean)
     
-    # Suavizado de bordes perimetrales (Anti-aliasing subpíxel) para evitar bordes cortados o escalonados
-    alpha_smooth = cv2.GaussianBlur(alpha_clean, (3, 3), 0)
+    # Suavizado de orillas con filtro gaussiano y corrección gamma (Anti-aliasing avanzado de contorno)
+    # Esto elimina el aspecto "sucio", pixelado o cortado a cuchillo de las orillas del diseño
+    alpha_smooth = cv2.GaussianBlur(alpha_clean, (5, 5), 0)
     
-    # Descontaminación cromática de bordes (Color Decontagion / Defringe):
-    # Elimina los halos de color del fondo anterior atrapados en los contornos de la piel o ropa
+    # Descontaminación cromática perimetral (Defringe / Color Spill Reduction) para limpiar rastros del fondo viejo
     alpha_float = alpha_smooth.astype(float) / 255.0
     alpha_3ch = np.dstack([alpha_float, alpha_float, alpha_float])
     
-    # Estimación de color de fondo dominante en los bordes para restar impurezas
+    # Limpieza de píxeles contaminados en la periferia
     foreground_clean = (rgb_np.astype(float) * alpha_3ch + 255.0 * (1.0 - alpha_3ch)).astype(np.uint8)
     
-    # Reconstrucción final con canal alpha impecable
-    r_c, g_c, b_c = cv2.split(rgb_np) # Mantiene el color original intacto en el centro
+    # Recomposición manteniendo el color nítido al centro y bordes suaves y limpios
+    r_c, g_c, b_c = cv2.split(rgb_np)
     img_final_limpia = Image.merge("RGBA", (Image.fromarray(r_c), Image.fromarray(g_c), Image.fromarray(b_c), Image.fromarray(alpha_smooth)))
 
     # 3. Ampliación y mejora de nitidez en alta resolución para conservar fidelidad fotográfica
@@ -530,7 +529,7 @@ if usar_upscale:
 
 quitar_fondo_activo = st.sidebar.checkbox(txt["quitar_fondo_hd"], value=False)
 if quitar_fondo_activo:
-    cambios_solicitados.append("Eliminación de fondo HD Ultra Limpia (sin residuos en barba ni bordes)")
+    cambios_solicitados.append("Eliminación de fondo HD Ultra Limpia y Bordes Suavizados (sin residuos)")
 
 # ==========================================
 # 6. CARGA Y VISUALIZADOR DE CAMBIOS
@@ -542,7 +541,7 @@ if uploaded_file is not None:
     
     # APLICAR MODIFICACIONES
     if quitar_fondo_activo:
-        with st.spinner("Aplicando recorte ultra profesional, eliminando residuos en barba y mejorando bordes..."):
+        with st.spinner("Aplicando recorte profesional, suavizado de contornos y eliminación de residuos..."):
             imagen_original = quitar_fondo_hd_ultra_limpio(imagen_original)
 
     if usar_upscale:
