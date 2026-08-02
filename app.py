@@ -44,7 +44,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- MENÚ LATERAL DE NAVEGACIÓN (DEFINIDO ANTES DE USARLO) ---
+# --- MENÚ LATERAL DE NAVEGACIÓN ---
 st.sidebar.markdown("## 🎨 Panel de Control")
 st.sidebar.markdown("Herramientas Profesionales para Publicidad y Producción")
 st.sidebar.markdown("---")
@@ -113,7 +113,7 @@ if "Preimpresión" in modulo_seleccionado:
                 
                 st.markdown("<div class='card-container'>", unsafe_allow_html=True)
                 st.subheader("🖼️ Vista Previa del Trabajo")
-                st.image(img_resized, width="stretch")
+                st.image(img_resized, width=400)
                 st.markdown(f"**Dimensiones de salida:** {nuevo_w} x {nuevo_h} px (300 PPI)")
                 st.markdown("</div>", unsafe_allow_html=True)
                 
@@ -149,10 +149,10 @@ if "Preimpresión" in modulo_seleccionado:
                 for i, (nombre, mat) in enumerate(fotolitos.items()):
                     with cols[i]:
                         st.markdown(f"**{nombre}**")
-                        st.image(mat, width="stretch", clamp=True)
+                        st.image(mat, clamp=True)
                         buf = io.BytesIO()
                         Image.fromarray(mat).save(buf, format="PNG", dpi=(300, 300))
-                        st.download_button(f"Descargar {nombre}", buf.getvalue(), f"fotolito_{nombre.lower()}.png", key=f"dl_{nombre}")
+                        st.download_button(f"Descargar", buf.getvalue(), f"fotolito_{nombre.lower()}.png", key=f"dl_{nombre}")
             except Exception as e:
                 st.error(f"Error procesando la imagen: {e}")
         else:
@@ -171,12 +171,12 @@ elif "Mejora HD" in modulo_seleccionado:
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("Imagen Original")
-            st.image(img_hd, width="stretch")
+            st.image(img_hd, width=400)
         with col2:
             st.subheader("Imagen Optimizada (Nitidez 300 DPI)")
             enhancer = ImageEnhance.Sharpness(img_hd)
             img_mejorada = enhancer.enhance(2.0)
-            st.image(img_mejorada, width="stretch")
+            st.image(img_mejorada, width=400)
             
             buf_hd = io.BytesIO()
             img_mejorada.save(buf_hd, format="PNG", dpi=(300, 300))
@@ -198,7 +198,7 @@ elif "Mockups de Ropa" in modulo_seleccionado:
         st.markdown("<div class='card-container'>", unsafe_allow_html=True)
         st.subheader("Vista Previa del Producto")
         if logo_prenda:
-            st.image(logo_prenda, width=200)
+            st.image(logo_prenda, width=250)
             st.success(f"Mockup generado sobre **{tipo_prenda}** correctamente.")
         else:
             st.info("Sube un logotipo para visualizarlo sobre la maqueta.")
