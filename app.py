@@ -10,7 +10,6 @@ from rembg import remove, new_session
 # Configuración de página
 st.set_page_config(page_title="DiseñosApp - Editor y Vista Previa", layout="wide")
 
-# Configuración de Claves de API (puedes cambiarlas o usar variables de entorno)
 STABILITY_API_KEY = "sk-TU_CLAVE_STABILITY_AI"
 
 # Función de eliminación de fondo mejorada con corte perimetral estricto
@@ -63,45 +62,45 @@ def quitar_fondo_hd_ultra_limpio(pil_img):
     return img_final_limpia.resize((w * 2, h * 2), Image.Resampling.LANCZOS)
 
 def ampliar_calidad_megapixels(pil_img):
-    """Función de ampliación de calidad HD/Megapixel."""
     w, h = pil_img.size
     return pil_img.resize((w * 2, h * 2), Image.Resampling.LANCZOS)
 
 def recrear_con_ia(pil_img):
-    """Función simulada o lista para integración de Img2Img con IA."""
     return pil_img
 
-# --- Interfaz Principal ---
-st.sidebar.title("Ajustes y Parámetros")
-
-# Dimensiones
-ancho_cm = st.sidebar.number_input("Ancho (cm)", value=30.0, step=1.0)
-alto_cm = st.sidebar.number_input("Alto (cm)", value=40.0, step=1.0)
+# --- Interfaz en Sidebar (Estructura Original Recuperada) ---
+st.sidebar.markdown("### Ancho y Alto")
+col_s1, col_s2 = st.sidebar.columns(2)
+with col_s1:
+    ancho_cm = st.number_input("Ancho (cm)", value=30.0, step=1.0)
+with col_s2:
+    alto_cm = st.number_input("Alto (cm)", value=40.0, step=1.0)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Técnica de Impresión / Proceso")
+st.sidebar.markdown("### Técnica de Impresión / Proceso")
+st.sidebar.markdown("**Selecciona técnica**")
 tecnica = st.sidebar.radio(
     "Selecciona técnica",
-    ["DTF (Impresión Directa a Film)", "Sublimación", "Serigrafía (Colores Planos)", "Serigrafía (Cuatricomía CMYK)"]
+    ["DTF (Impresión Directa a Film)", "Sublimación", "Serigrafía (Colores Planos)", "Serigrafía (Cuatricomía CMYK)"],
+    label_visibility="collapsed"
 )
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Ajustes y Cambios Solicitados (IA)")
+st.sidebar.markdown("### Ajustes y Cambios Solicitados (IA)")
 opcion_recrear = st.sidebar.checkbox("Recrear/Duplicar con IA (Img2Img)")
 opcion_ampliar = st.sidebar.checkbox("Ampliar Calidad (Estilo Megapixel 4K)")
-opcion_quitar_fondo = st.sidebar.checkbox("Quitar Fondo HD Ultra Profesional (Corte perfecto sin residuos en barbas ni orillas)", value=True)
+opcion_quitar_fondo = st.sidebar.checkbox("Quitar Fondo HD Ultra Profesional\n(Corte perfecto sin residuos en barbas ni orillas)", value=True)
 
-# Área de Carga de Imagen (o imagen por defecto si se desea probar)
-uploaded_file = st.sidebar.file_uploader("Sube tu imagen de diseño", type=["png", "jpg", "jpeg"])
+st.sidebar.markdown("---")
+st.sidebar.markdown("### Sube tu imagen de diseño")
+uploaded_file = st.sidebar.file_uploader("Sube tu imagen de diseño", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
 
 if uploaded_file is not None:
     imagen_original = Image.open(uploaded_file).convert("RGBA")
 else:
-    # Imagen de prueba por defecto en caso de no subir archivo (puedes reemplazarla o dejar el comportamiento vacío)
-    # Creamos una imagen sintética transparente de respaldo si no hay archivo
     imagen_original = Image.new("RGBA", (800, 800), (120, 80, 50, 255))
 
-# Procesamiento de la imagen según los checkboxes seleccionados
+# Procesamiento
 imagen_procesada = imagen_original.copy()
 cambios_aplicados = []
 
@@ -117,7 +116,7 @@ if opcion_quitar_fondo:
     imagen_procesada = quitar_fondo_hd_ultra_limpio(imagen_procesada)
     cambios_aplicados.append("Eliminación de fondo HD con Limpieza Profunda en Barbas y Contornos.")
 
-# --- Vista Principal en Pantalla ---
+# --- Pantalla Principal ---
 col1, col2 = st.columns([2, 1])
 
 with col1:
