@@ -72,25 +72,19 @@ with st.sidebar:
 def generar_trama_canal(canal_array, lpi=45, dpi=300):
     h, w = canal_array.shape
     paso = max(2, int(dpi / lpi))
-    
     trama_img = np.ones((h, w), dtype=np.uint8) * 255
     
     for y in range(0, h, paso):
         for x in range(0, w, paso):
-            # Tomar un bloque y calcular el promedio de intensidad
             bloque = canal_array[y:min(y+paso, h), x:min(x+paso, w)]
             if bloque.size == 0:
                 continue
             intensidad = np.mean(bloque)
-            
-            # Radio del punto de semitono basado en la intensidad
             radio = int((paso / 2) * intensidad)
             if radio > 0:
                 yy, xx = np.ogrid[:h, :w]
                 mask = (xx - x)**2 + (yy - y)**2 <= radio**2
                 trama_img[mask] = 0
-                
-            # Si el fondo es blanco, invertimos para que los puntos sean oscuros
     return trama_img
 
 # --- CUERPO PRINCIPAL ---
@@ -112,7 +106,7 @@ if archivo_subido is not None:
         else:
             imagen_procesada = imagen_original.convert("RGBA")
 
-        # Reescalado seguro a 300 PPI (limitado para rendimiento óptimo)
+        # Reescalado seguro a 300 PPI
         dpi_objetivo = 300
         nuevo_w = int((ancho_cm / 2.54) * dpi_objetivo)
         nuevo_h = int((alto_cm / 2.54) * dpi_objetivo)
