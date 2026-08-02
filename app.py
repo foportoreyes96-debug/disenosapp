@@ -164,12 +164,12 @@ elif "Mejora HD" in modulo_seleccionado:
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("Imagen Original")
-            st.image(img_hd, use_container_width=True)
+            st.image(img_hd, width="stretch")
         with col2:
             st.subheader("Imagen Optimizada (Nitidez 300 DPI)")
             enhancer = ImageEnhance.Sharpness(img_hd)
             img_mejorada = enhancer.enhance(2.0)
-            st.image(img_mejorada, use_container_width=True)
+            st.image(img_mejorada, width="stretch")
             
             buf_hd = io.BytesIO()
             img_mejorada.save(buf_hd, format="PNG", dpi=(300, 300))
