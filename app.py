@@ -86,8 +86,6 @@ TRADUCCIONES = {
         "prompt_ia": "Instrucciones de cambio de la gente",
         "fuerza_ia": "Fuerza de variación",
         "usar_upscale": "🔍 Ampliar Calidad (Estilo Megapixel 4K)",
-        "usar_inpainting": "🎨 Modificar/Agregar Contenido Específico",
-        "prompt_inpainting": "Qué elemento agregar o cambiar en el diseño",
         "tecnica": "Técnica de Impresión / Processo",
         "dtf": "DTF (Impresión Directa a Film)",
         "sublimacion": "Sublimación",
@@ -123,8 +121,6 @@ TRADUCCIONES = {
         "prompt_ia": "Customer change instructions",
         "fuerza_ia": "Variation strength",
         "usar_upscale": "🔍 AI Upscale & Enhance (Megapixel 4K)",
-        "usar_inpainting": "🎨 Add/Modify Specific Content",
-        "prompt_inpainting": "What element to add or change in the design",
         "tecnica": "Printing Technique / Process",
         "dtf": "DTF (Direct to Film)",
         "sublimacion": "Sublimation",
@@ -160,8 +156,6 @@ TRADUCCIONES = {
         "prompt_ia": "Instruções de mudança do cliente",
         "fuerza_ia": "Força de variação",
         "usar_upscale": "🔍 Ampliar Qualidade (Estilo Megapixel 4K)",
-        "usar_inpainting": "🎨 Modificar/Adicionar Conteúdo Específico",
-        "prompt_inpainting": "O que adicionar ou mudar no design",
         "tecnica": "Técnica de Impressão / Processo",
         "dtf": "DTF (Impressão Direta no Filme)",
         "sublimacion": "Sublimação",
@@ -197,8 +191,6 @@ TRADUCCIONES = {
         "prompt_ia": "Instructions de modification du client",
         "fuerza_ia": "Force de variation",
         "usar_upscale": "🔍 Agrandir Qualité (Style Megapixel 4K)",
-        "usar_inpainting": "🎨 Modifier/Ajouter du Contenu Spécifique",
-        "prompt_inpainting": "Élément à ajouter ou modifier",
         "tecnica": "Technique d'impression / Processus",
         "dtf": "DTF",
         "sublimacion": "Sublimation",
@@ -234,61 +226,6 @@ st.markdown(txt["subtitulo"])
 # ==========================================
 # 4. FUNCIONES DE PROCESAMIENTO E IA REALES
 # ==========================================
-def modificar_contenido_ia(pil_img, prompt_mod, ubicacion_texto="centro"):
-    """Modifica el contenido limpiando con precisión según la ubicación descrita"""
-    if STABILITY_API_KEY != "sk-TU_CLAVE_STABILITY_AI" and STABILITY_API_KEY:
-        buffer = io.BytesIO()
-        pil_img.save(buffer, format="PNG")
-        buffer.seek(0)
-        try:
-            response = requests.post(
-                "https://api.stability.ai/v1/generation/stable-diffusion-v1-6/image-to-image",
-                headers={"Authorization": f"Bearer {STABILITY_API_KEY}", "Accept": "application/json"},
-                files={"init_image": buffer},
-                data={
-                    "init_image_mode": "IMAGE_STRENGTH",
-                    "image_strength": 0.55,
-                    "text_prompts[0][text]": prompt_mod,
-                    "text_prompts[0][weight]": 1.3,
-                    "cfg_scale": 8,
-                    "samples": 1,
-                    "steps": 35,
-                }
-            )
-            if response.status_code == 200:
-                data = response.json()
-                image_data = base64.b64decode(data["artifacts"][0]["base64"])
-                return Image.open(io.BytesIO(image_data))
-        except Exception:
-            pass
-
-    # Limpieza inteligente local basada en la zona donde esté el texto
-    img_mod = pil_img.copy()
-    w, h = img_mod.size
-    draw = ImageDraw.Draw(img_mod)
-    
-    # Definimos coordenadas dinámicas adaptadas al área superior/central donde suele haber texto viejo
-    x1, y1, x2, y2 = int(w * 0.1), int(h * 0.28), int(w * 0.9), int(h * 0.42)
-    
-    # Extraemos el color de fondo limpio de los bordes del área
-    region_fondo = img_mod.crop((x1, max(0, y1 - 15), x2, y1))
-    color_promedio = region_fondo.resize((1, 1)).getpixel((0, 0))
-    
-    # Borramos el texto viejo pintando encima con el color de fondo exacto
-    draw.rectangle([x1, y1, x2, y2], fill=color_promedio)
-    
-    # Colocamos el nuevo elemento (ej. el logo de garantía) de forma armónica
-    draw.rounded_rectangle([int(w * 0.25), int(y1 + 5), int(w * 0.75), int(y2 - 5)], radius=12, fill=(255, 255, 255), outline=(30, 144, 255), width=3)
-    
-    try:
-        font = ImageFont.truetype("arial.ttf", int(h * 0.025))
-    except:
-        font = ImageFont.load_default()
-        
-    draw.text((int(w * 0.28), int(y1 + 15)), "🛡️ LOGO DE GARANTÍA APLICADO", fill=(20, 20, 20))
-    
-    return img_mod
-
 def recrear_imagen_con_ia(pil_img, prompt, strength=0.35):
     if STABILITY_API_KEY == "sk-TU_CLAVE_STABILITY_AI" or not STABILITY_API_KEY:
         return pil_img
@@ -480,7 +417,7 @@ num_tintas = 4
 if tecnica == txt["serigrafia_planos"]:
     num_tintas = st.sidebar.slider(txt["num_tintas"], 2, 8, 4)
 
-# Panel de Cambios y Peticiones de la Gente
+# Panel de Cambios y Peticiones de la Gente (Sin modificación de contenido específico)
 st.sidebar.divider()
 st.sidebar.header(txt["herramientas_ia_extra"])
 
@@ -498,13 +435,6 @@ usar_upscale = st.sidebar.checkbox(txt["usar_upscale"], value=False)
 if usar_upscale:
     cambios_solicitados.append("Ampliación Calidad Megapixel 4K")
 
-usar_inpainting = st.sidebar.checkbox(txt["usar_inpainting"], value=False)
-prompt_inpainting = ""
-if usar_inpainting:
-    prompt_inpainting = st.sidebar.text_input(txt["prompt_inpainting"], "quitar texto y poner un logo de garantía")
-    if prompt_inpainting:
-        cambios_solicitados.append(f"Modificación específica: {prompt_inpainting}")
-
 # ==========================================
 # 6. CARGA Y VISUALIZADOR DE CAMBIOS
 # ==========================================
@@ -517,10 +447,6 @@ if uploaded_file is not None:
     if usar_upscale:
         with st.spinner("Aplicando ampliación de calidad Megapixel..."):
             imagen_original = ampliar_calidad_megapixel(imagen_original)
-
-    if usar_inpainting and prompt_inpainting:
-        with st.spinner("Modificando contenido y aplicando logo de garantía..."):
-            imagen_original = modificar_contenido_ia(imagen_original, prompt_inpainting)
 
     if usar_ia and prompt_ia:
         with st.spinner("Recreando diseño según instrucciones..."):
@@ -653,7 +579,7 @@ if uploaded_file is not None:
         
         elif tecnica in [txt["dtf"], txt["sublimacion"]]:
             with col_desc2:
-                st.success(f"✅ Arte con los cambios solicitados listo y optimizado para {tecnica} a 300 DPI.")
+                st.success(f"✅ Arte listo y optimizado para {tecnica} a 300 DPI.")
 
         st.divider()
         if st.button(txt["procesar_otro"]):
