@@ -1,10 +1,8 @@
-streamlit
-pillow
+streamlit>=1.30.0
+Pillow
 numpy
 opencv-python-headless
 rembg
 scikit-learn
 stripe
-paypal-checkout-serversdk
-requests
 onnxruntime
