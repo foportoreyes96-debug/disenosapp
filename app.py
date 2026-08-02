@@ -105,11 +105,15 @@ if archivo_subido is not None:
         else:
             imagen_procesada = imagen_original.convert("RGBA")
 
-        # Reescalado a 300 PPI
+        # Reescalado seguro a 300 PPI (limitado para evitar sobrecarga de memoria)
         dpi_objetivo = 300
         nuevo_w = int((ancho_cm / 2.54) * dpi_objetivo)
         nuevo_h = int((alto_cm / 2.54) * dpi_objetivo)
         
+        # Limitar tamaño máximo preventivo si el usuario pone medidas muy grandes
+        if nuevo_w > 4000: nuevo_w = 4000
+        if nuevo_h > 4000: nuevo_h = 4000
+
         imagen_redimensionada = imagen_procesada.resize((nuevo_w, nuevo_h), Image.Resampling.LANCZOS)
         
         if mejorar_nitidez:
@@ -169,17 +173,20 @@ if archivo_subido is not None:
             base_gray = 1.0 - np.mean(rgb_arr, axis=2)
             fotolitos['Base Blanca'] = generar_trama_canal(base_gray, lpi=lineatura, dpi=300, angulo=22.5)
 
-        # --- SIMULACIÓN DE VISTA PREVIA FINAL (COMPOSITE) ---
-        c_inv = 1.0 - (fotolitos['Cian'].astype(float) / 255.0)
-        m_inv = 1.0 - (fotolitos['Magenta'].astype(float) / 255.0)
-        y_inv = 1.0 - (fotolitos['Amarillo'].astype(float) / 255.0)
-        k_inv = 1.0 - (fotolitos['Negro'].astype(float) / 255.0)
-        
-        r_sim = np.clip(1.0 - (c_inv + k_inv), 0, 1)
-        g_sim = np.clip(1.0 - (m_inv + k_inv), 0, 1)
-        b_sim = np.clip(1.0 - (y_inv + k_inv), 0, 1)
-        simulacion_rgb = np.stack([r_sim, g_sim, b_sim], axis=2)
-        simulacion_img = Image.fromarray((simulacion_rgb * 255).astype(np.uint8))
+        # --- SIMULACIÓN DE VISTA PREVIA FINAL SEGURO ---
+        try:
+            c_inv = 1.0 - (fotolitos['Cian'].astype(float) / 255.0)
+            m_inv = 1.0 - (fotolitos['Magenta'].astype(float) / 255.0)
+            y_inv = 1.0 - (fotolitos['Amarillo'].astype(float) / 255.0)
+            k_inv = 1.0 - (fotolitos['Negro'].astype(float) / 255.0)
+            
+            r_sim = np.clip(1.0 - (c_inv + k_inv), 0, 1)
+            g_sim = np.clip(1.0 - (m_inv + k_inv), 0, 1)
+            b_sim = np.clip(1.0 - (y_inv + k_inv), 0, 1)
+            simulacion_rgb = np.stack([r_sim, g_sim, b_sim], axis=2)
+            simulacion_img = Image.fromarray((simulacion_rgb * 255).astype(np.uint8))
+        except Exception:
+            simulacion_img = background_blanco
 
         st.divider()
         st.markdown("### 👁️ Vista Previa del Resultado Final (Simulación de Impresión)")
